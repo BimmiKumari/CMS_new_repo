@@ -1,0 +1,195 @@
+<div class="dashboard-container">
+
+    <!-- Left Sidebar: Regular Patients Queue -->
+    <div class="queue-sidebar">
+        <div class="queue-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="dot regular"></span>
+                    Regular Patients
+                </div>
+                <span class="patient-count">{{ regularPatients.length }} patients waiting</span>
+            </div>
+
+            <div class="patient-list">
+                <div *ngFor="let p of regularPatients" class="patient-card"
+                    [class.active]="selectedPatient?.queueID === p.queueID"
+                    (click)="selectPatient(p)">
+                    <div class="card-content">
+                        <div class="avatar-mini">
+                            <img *ngIf="p.profileImagePath" [src]="p.profileImagePath" alt="">
+                            <div *ngIf="!p.profileImagePath" class="no-img">{{ getInitials(p.patientName) }}</div>
+                        </div>
+                        <div class="card-info">
+                            <h4 class="patient-name">{{ p.patientName }}</h4>
+                            <span class="patient-id">ID: {{ p.patientID.substring(0, 8) }}</span>
+                        </div>
+                        <span class="time-slot">{{ formatTime(p.appointmentTimeSlot) }}</span>
+                    </div>
+                    <div class="card-actions" *ngIf="p.queueStatus === 0">
+                        <button mat-flat-button class="attend-btn" (click)="attendPatient(p); $event.stopPropagation()">
+                            <mat-icon>check</mat-icon> Attend
+                        </button>
+                        <button mat-icon-button class="dismiss-btn" (click)="dismissPatient(p); $event.stopPropagation()">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middle: Main EMR Panel -->
+    <div class="main-emr-panel">
+        <div *ngIf="selectedPatient; else noSelection" class="panel-content">
+
+            <!-- Patient Summary Header -->
+            <div class="patient-summary">
+                <div class="avatar-large">
+                    <img *ngIf="selectedPatient.profileImagePath" [src]="selectedPatient.profileImagePath" alt="">
+                    <div *ngIf="!selectedPatient.profileImagePath" class="no-img">{{ getInitials(selectedPatient.patientName) }}</div>
+                </div>
+                <div class="summary-details">
+                    <div class="summary-header">
+                        <h2 class="summary-name">{{ selectedPatient.patientName }}</h2>
+                        <span class="patient-type-tag">{{ selectedPatient.isFollowUp ? 'Follow-up' : 'Regular Patient' }}</span>
+                    </div>
+                    <div class="summary-info-grid">
+                        <div class="info-item">
+                            <span class="label">Age:</span>
+                            <span class="value">{{ selectedPatient.age }} years</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Gender:</span>
+                            <span class="value">{{ selectedPatient.sex === 'M' ? 'Male' : 'Female' }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Blood Type:</span>
+                            <span class="value">{{ selectedPatient.bloodGroup || 'O+' }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Phone:</span>
+                            <span class="value">+1 234-567-8900</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Last Visit:</span>
+                            <span class="value">Jan 15, 2025</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Allergies:</span>
+                            <span class="value text-danger">{{ selectedPatient.allergies || 'Penicillin' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical History & Today's Visit -->
+            <div class="emr-body">
+                <!-- Left: Medical History -->
+                <div class="history-side">
+                    <h3 class="section-title-large">Medical History</h3>
+                    <div class="history-card">
+                        <div class="history-item">
+                            <div class="history-label">Previous Conditions:</div>
+                            <div class="history-text">Hypertension, Diabetes Type 2</div>
+                        </div>
+                        <div class="history-item">
+                            <div class="history-label">Current Medications:</div>
+                            <div class="history-text">Metformin 500mg, Lisinopril 10mg</div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button mat-flat-button class="secondary-action" (click)="writePrescription()">
+                                <mat-icon>description</mat-icon> Write Prescription
+                            </button>
+                            <button mat-flat-button class="secondary-action" (click)="assignLabTest()">
+                                <mat-icon>science</mat-icon> Assign Lab Test
+                            </button>
+                            <button mat-flat-button class="secondary-action" (click)="updateEHR()">
+                                <mat-icon>folder_open</mat-icon> Update EHR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Today's Visit -->
+                <div class="visit-side">
+                    <h3 class="section-title-large">Today's Visit</h3>
+                    <div class="visit-form">
+                        <div class="form-group">
+                            <label class="history-label">Chief Complaint</label>
+                            <mat-form-field appearance="outline" class="full-width">
+                                <textarea matInput rows="3" [(ngModel)]="chiefComplaint" 
+                                    placeholder="Enter patient's main concern..."></textarea>
+                            </mat-form-field>
+                        </div>
+                        <div class="form-group">
+                            <label class="history-label">Diagnosis</label>
+                            <mat-form-field appearance="outline" class="full-width">
+                                <textarea matInput rows="3" [(ngModel)]="diagnosis" 
+                                    placeholder="Enter diagnosis..."></textarea>
+                            </mat-form-field>
+                        </div>
+                        <div class="form-group">
+                            <label class="history-label">Treatment Plan</label>
+                            <mat-form-field appearance="outline" class="full-width">
+                                <textarea matInput rows="3" [(ngModel)]="treatmentPlan" 
+                                    placeholder="Enter treatment plan..."></textarea>
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <ng-template #noSelection>
+            <div class="empty-state">
+                <mat-icon>person_search</mat-icon>
+                <h2>Select a patient from the queue</h2>
+                <p>You have {{ regularPatients.length + followUpPatients.length }} patients waiting</p>
+            </div>
+        </ng-template>
+    </div>
+
+    <!-- Right Sidebar: Follow-up & Emergency -->
+    <div class="followup-sidebar">
+        <!-- Follow-up Patients -->
+        <div class="queue-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="dot followup"></span>
+                    Follow-up Patients
+                </div>
+                <span class="patient-count">{{ followUpPatients.length }} patients</span>
+            </div>
+            <div class="patient-list">
+                <div *ngFor="let p of followUpPatients" class="patient-card"
+                    [class.active]="selectedPatient?.queueID === p.queueID"
+                    (click)="selectPatient(p)">
+                    <div class="card-content">
+                        <div class="avatar-mini">
+                            <img *ngIf="p.profileImagePath" [src]="p.profileImagePath" alt="">
+                            <div *ngIf="!p.profileImagePath" class="no-img">{{ getInitials(p.patientName) }}</div>
+                        </div>
+                        <div class="card-info">
+                            <h4 class="patient-name">{{ p.patientName }}</h4>
+                            <span class="patient-id">Follow-up</span>
+                        </div>
+                        <span class="time-slot">{{ formatTime(p.appointmentTimeSlot) }}</span>
+                    </div>
+                    <div class="card-actions" *ngIf="p.queueStatus === 0">
+                        <button mat-flat-button class="attend-btn" (click)="attendPatient(p); $event.stopPropagation()">
+                            <mat-icon>check</mat-icon> Attend
+                        </button>
+                        <button mat-icon-button class="dismiss-btn" (click)="dismissPatient(p); $event.stopPropagation()">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+</div>

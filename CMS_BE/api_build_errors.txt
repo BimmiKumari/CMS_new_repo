@@ -1,0 +1,35 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  CMS.Domain -> C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Domain\bin\Debug\net8.0\CMS.Domain.dll
+  CMS.Data -> C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Data\bin\Debug\net8.0\CMS.Data.dll
+  CMS.Application -> C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Application\bin\Debug\net8.0\CMS.Application.dll
+  CMS.Infrastructure -> C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Infrastructure\bin\Debug\net8.0\CMS.Infrastructure.dll
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(40,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(56,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\EMR\EncounterController.cs(43,48): warning CS0168: The variable 'ex' is declared but never used [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Appointments\PaymentController.cs(227,38): error CS1061: 'IOrderedQueryable<PatientEncounter>' does not contain a definition for 'FirstOrDefaultAsync' and no accessible extension method 'FirstOrDefaultAsync' accepting a first argument of type 'IOrderedQueryable<PatientEncounter>' could be found (are you missing a using directive or an assembly reference?) [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\EMR\EncounterController.cs(123,48): warning CS0168: The variable 'ex' is declared but never used [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(144,37): warning CS8601: Possible null reference assignment. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(29,30): warning CS8618: Non-nullable property 'File' must contain a non-null value when exiting constructor. Consider declaring the property as nullable. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(208,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(224,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(240,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(262,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+
+Build FAILED.
+
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(40,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(56,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\EMR\EncounterController.cs(43,48): warning CS0168: The variable 'ex' is declared but never used [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\EMR\EncounterController.cs(123,48): warning CS0168: The variable 'ex' is declared but never used [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(144,37): warning CS8601: Possible null reference assignment. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(29,30): warning CS8618: Non-nullable property 'File' must contain a non-null value when exiting constructor. Consider declaring the property as nullable. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(208,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(224,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(240,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Auth\AuthController.cs(262,63): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\Controllers\Appointments\PaymentController.cs(227,38): error CS1061: 'IOrderedQueryable<PatientEncounter>' does not contain a definition for 'FirstOrDefaultAsync' and no accessible extension method 'FirstOrDefaultAsync' accepting a first argument of type 'IOrderedQueryable<PatientEncounter>' could be found (are you missing a using directive or an assembly reference?) [C:\Users\simmy\Desktop\CMS\CMS_BE\CMS.Api\CMS.Api.csproj]
+    10 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:03.22
