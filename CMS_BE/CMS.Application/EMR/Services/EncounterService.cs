@@ -233,33 +233,79 @@ namespace CMS.Application.EMR.Services
 
         public async Task<PrescriptionDto> AddPrescriptionAsync(CreatePrescriptionDto dto)
         {
-            var prescription = new Prescription
+            _logger.LogInformation($"[PRESCRIPTION SERVICE] Processing {dto.Medicines?.Count ?? 0} medicines");
+            
+            foreach (var medicine in dto.Medicines)
             {
-                PrescriptionID = Guid.NewGuid(),
-                EncounterID = dto.EncounterID,
-                DoctorID = dto.DoctorID,
-                MedicationName = dto.MedicationName,
-                Dosage = dto.Dosage,
-                Unit = dto.Unit,
-                Frequency = dto.Frequency,
-                Duration = dto.Duration,
-                Notes = dto.Notes
-            };
+                _logger.LogInformation($"[PRESCRIPTION SERVICE] Raw medicine data: Name='{medicine.MedicineName}', Dosage='{medicine.Dosage}', Frequency='{medicine.Frequency}', Duration='{medicine.Duration}', Instructions='{medicine.Instructions}'");
+                
+                var frequency = ParseFrequency(medicine.Frequency);
+                var dosage = ExtractDosageNumber(medicine.Dosage);
+                var unit = ExtractDosageUnit(medicine.Dosage);
+                
+                _logger.LogInformation($"[PRESCRIPTION SERVICE] Parsed values: Dosage={dosage}, Unit='{unit}', Frequency={frequency}");
+                
+                var prescription = new Prescription
+                {
+                    PrescriptionID = Guid.NewGuid(),
+                    EncounterID = dto.EncounterID,
+                    DoctorID = dto.DoctorID,
+                    MedicationName = string.IsNullOrEmpty(medicine.MedicineName) ? "Unknown Medicine" : medicine.MedicineName,
+                    Dosage = dosage,
+                    Unit = string.IsNullOrEmpty(unit) ? "mg" : unit,
+                    Frequency = frequency,
+                    Duration = string.IsNullOrEmpty(medicine.Duration) ? "Not specified" : medicine.Duration,
+                    Notes = string.IsNullOrEmpty(dto.Notes) ? (string.IsNullOrEmpty(medicine.Instructions) ? "No notes" : medicine.Instructions) : dto.Notes,
+                    CreatedAt = DateTime.UtcNow
+                };
+                
+                _logger.LogInformation($"[PRESCRIPTION SERVICE] Final prescription object: MedicationName='{prescription.MedicationName}', Dosage={prescription.Dosage}, Unit='{prescription.Unit}', Duration='{prescription.Duration}'");
 
-            _context.Prescriptions.Add(prescription);
+                _context.Prescriptions.Add(prescription);
+            }
+            
             await _context.SaveChangesAsync();
 
             return new PrescriptionDto
             {
-                PrescriptionID = prescription.PrescriptionID,
-                MedicationName = prescription.MedicationName,
-                Dosage = prescription.Dosage,
-                Unit = prescription.Unit,
-                Frequency = prescription.Frequency,
-                Duration = prescription.Duration,
-                Notes = prescription.Notes,
-                CreatedAt = prescription.CreatedAt
+                PrescriptionID = Guid.NewGuid(),
+                MedicationName = "Prescription saved",
+                Dosage = dto.Medicines.Count,
+                Unit = "medicines",
+                Frequency = MedicationFrequency.OnceDaily,
+                Duration = "",
+                Notes = dto.Notes ?? "",
+                CreatedAt = DateTime.UtcNow
             };
+        }
+
+        private MedicationFrequency ParseFrequency(string frequency)
+        {
+            return frequency?.ToLower() switch
+            {
+                "once daily" => MedicationFrequency.OnceDaily,
+                "twice daily" => MedicationFrequency.TwiceDaily,
+                "three times daily" => MedicationFrequency.ThreeTimesDaily,
+                "four times daily" => MedicationFrequency.FourTimesDaily,
+                "as needed" => MedicationFrequency.AsNeeded,
+                _ => MedicationFrequency.OnceDaily
+            };
+        }
+
+        private int ExtractDosageNumber(string dosage)
+        {
+            if (string.IsNullOrEmpty(dosage)) return 0;
+            
+            var numbers = System.Text.RegularExpressions.Regex.Match(dosage, @"\d+");
+            return numbers.Success ? int.Parse(numbers.Value) : 0;
+        }
+
+        private string ExtractDosageUnit(string dosage)
+        {
+            if (string.IsNullOrEmpty(dosage)) return "";
+            
+            var unit = System.Text.RegularExpressions.Regex.Replace(dosage, @"\d+", "").Trim();
+            return string.IsNullOrEmpty(unit) ? "mg" : unit;
         }
 
         public async Task<LabTestDto> AddLabTestAsync(CreateLabTestDto dto)

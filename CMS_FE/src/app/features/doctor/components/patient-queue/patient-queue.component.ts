@@ -10,8 +10,15 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { EmrService } from '../../../../core/services/emr.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { PrescriptionFormComponent } from '../prescription-form/prescription-form.component';
+import { LabTestFormComponent } from '../lab-test-form/lab-test-form.component';
+import { DiagnosisFormComponent } from '../diagnosis-form/diagnosis-form.component';
+import { ObservationFormComponent } from '../observation-form/observation-form.component';
+import { FollowupScheduleComponent } from '../followup-schedule/followup-schedule.component';
+import { AppointmentService } from '../../../../core/services/appointment.service';
 import {
     DoctorQueueResponse,
     QueuePatient,
@@ -54,10 +61,17 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     diagnosis: string = '';
     treatmentPlan: string = '';
 
+    // Medical history
+    previousConditions: string = '';
+    currentMedications: string = '';
+    lastVisitDate: string = '';
+
     constructor(
         private emrService: EmrService,
         private authService: AuthService,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private dialog: MatDialog,
+        private appointmentService: AppointmentService
     ) {
         const user = this.authService.getCurrentUser();
         this.doctorId = user?.userID || user?.id || '';
@@ -66,6 +80,16 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        // Check if user is authenticated
+        const token = localStorage.getItem('accessToken');
+        console.log('Token exists:', !!token);
+        console.log('Doctor ID:', this.doctorId);
+        
+        if (!token) {
+            this.snackBar.open('Please login again - session expired', 'Close', { duration: 5000 });
+            return;
+        }
+        
         if (this.doctorId) {
             this.loadQueue();
             // Auto-refresh queue every 10 minutes
@@ -91,6 +115,10 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
                 
                 console.log('Regular patients:', this.regularPatients.length);
                 console.log('Follow-up patients:', this.followUpPatients.length);
+                console.log('Sample regular patient:', this.regularPatients[0]);
+                console.log('Sample follow-up patient:', this.followUpPatients[0]);
+                
+
                 
                 // Auto-select first waiting patient
                 if (!this.selectedPatient) {
@@ -105,9 +133,15 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             },
             error: (err: any) => {
                 console.error('Error loading queue:', err);
-                this.snackBar.open('Failed to load patient queue', 'Close', { duration: 3000 });
+                this.snackBar.open('Failed to load patient queue. Click refresh to try again.', 'Close', { duration: 5000 });
             }
         });
+    }
+
+
+
+    refreshQueue(): void {
+        this.loadQueue();
     }
 
     selectPatient(patient: QueuePatient): void {
@@ -116,11 +150,15 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     loadEncounter(appointmentId: string): void {
-        this.emrService.getPatientEncounters(this.selectedPatient!.patientID).subscribe({
+        const userIdForEMR = this.selectedPatient!.patientID;
+        
+        this.emrService.getPatientEncounters(userIdForEMR).subscribe({
             next: (res: any) => {
                 if (res.success) {
+                    const encounters = res.data as EncounterDetail[];
+                    
                     // Find encounter matching today's appointment
-                    const encounter = (res.data as EncounterDetail[]).find((e: EncounterDetail) => e.appointmentID === appointmentId);
+                    const encounter = encounters.find((e: EncounterDetail) => e.appointmentID === appointmentId);
                     if (encounter) {
                         this.selectedEncounter = encounter;
                         this.chiefComplaint = encounter.chiefComplaint || '';
@@ -129,39 +167,92 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
                     } else {
                         this.selectedEncounter = null;
                     }
+
+                    // Load medical history from previous encounters
+                    this.loadMedicalHistory(encounters);
                 }
+            },
+            error: (err) => {
+                console.error('Error loading EMR encounters:', err);
+                // Set defaults if EMR fails
+                this.previousConditions = 'No previous conditions recorded';
+                this.currentMedications = 'No current medications';
+                this.lastVisitDate = 'First visit';
             }
         });
     }
 
-    attendPatient(patient: QueuePatient): void {
+    loadMedicalHistory(encounters: EncounterDetail[]): void {
+        // Get previous conditions from past diagnoses
+        const conditions = encounters
+            .flatMap(e => e.diagnoses || [])
+            .filter(d => d.isPrimary)
+            .map(d => d.description)
+            .filter((value, index, self) => self.indexOf(value) === index)
+            .join(', ');
+        
+        this.previousConditions = conditions || 'No previous conditions recorded';
+
+        // Get current medications from latest prescription
+        const latestEncounter = encounters
+            .filter(e => e.prescriptions && e.prescriptions.length > 0)
+            .sort((a, b) => new Date(b.encounterDate).getTime() - new Date(a.encounterDate).getTime())[0];
+        
+        if (latestEncounter?.prescriptions?.[0]?.items) {
+            const medications = latestEncounter.prescriptions[0].items
+                .map(item => `${item.medicineName} ${item.dosage}`)
+                .join(', ');
+            this.currentMedications = medications;
+        } else {
+            this.currentMedications = 'No current medications';
+        }
+
+        // Get last visit date
+        if (encounters.length > 1) {
+            const lastVisit = encounters
+                .sort((a, b) => new Date(b.encounterDate).getTime() - new Date(a.encounterDate).getTime())[1];
+            this.lastVisitDate = new Date(lastVisit.encounterDate).toLocaleDateString();
+        } else {
+            this.lastVisitDate = 'First visit';
+        }
+    }
+
+    acceptPatient(patient: QueuePatient): void {
         this.emrService.updateQueueStatus({
             queueID: patient.queueID,
             newStatus: QueueStatusType.InProgress
         }).subscribe({
             next: (res: any) => {
-                this.snackBar.open('Patient status updated', 'Close', { duration: 2000 });
+                this.snackBar.open(`${patient.patientName} accepted for consultation`, 'Close', { duration: 3000 });
                 this.loadQueue();
                 this.selectPatient(patient);
             },
-            error: (err: any) => this.snackBar.open('Error updating status', 'Close', { duration: 3000 })
+            error: (err: any) => this.snackBar.open('Error accepting patient', 'Close', { duration: 3000 })
         });
     }
 
-    dismissPatient(patient: QueuePatient): void {
-        if (confirm('Are you sure you want to dismiss this patient?')) {
+    attendPatient(patient: QueuePatient): void {
+        this.acceptPatient(patient);
+    }
+
+    rejectPatient(patient: QueuePatient): void {
+        if (confirm(`Are you sure you want to reject ${patient.patientName}?`)) {
             this.emrService.removeFromQueue(patient.queueID).subscribe({
                 next: (res: any) => {
-                    this.snackBar.open('Patient removed from queue', 'Close', { duration: 2000 });
+                    this.snackBar.open(`${patient.patientName} has been removed from queue`, 'Close', { duration: 3000 });
                     this.loadQueue();
                     if (this.selectedPatient?.queueID === patient.queueID) {
                         this.selectedPatient = null;
                         this.selectedEncounter = null;
                     }
                 },
-                error: (err: any) => this.snackBar.open('Error removing patient', 'Close', { duration: 3000 })
+                error: (err: any) => this.snackBar.open('Error rejecting patient', 'Close', { duration: 3000 })
             });
         }
+    }
+
+    dismissPatient(patient: QueuePatient): void {
+        this.rejectPatient(patient);
     }
 
     updateEHR(): void {
@@ -196,15 +287,291 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     writePrescription(): void {
-        this.snackBar.open('Prescription module coming soon', 'Close', { duration: 3000 });
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        // Create encounter if it doesn't exist
+        if (!this.selectedEncounter) {
+            this.createEncounterAndOpenPrescription();
+        } else {
+            this.openPrescriptionForm();
+        }
+    }
+
+    createEncounterAndOpenPrescription(): void {
+        const encounterDto = {
+            patientID: this.selectedPatient!.patientID,
+            doctorID: this.doctorId,
+            appointmentID: this.selectedPatient!.appointmentID,
+            encounterType: this.selectedPatient!.isFollowUp ? 1 : 0,
+            chiefComplaint: this.selectedPatient!.chiefComplaint || ''
+        };
+
+        this.emrService.createEncounter(encounterDto).subscribe({
+            next: (response) => {
+                if (response.success) {
+                    this.selectedEncounter = response.data;
+                    this.openPrescriptionForm();
+                }
+            },
+            error: (error) => {
+                console.error('Error creating encounter:', error);
+                this.snackBar.open('Error creating encounter', 'Close', { duration: 3000 });
+            }
+        });
+    }
+
+    openPrescriptionForm(): void {
+        const dialogRef = this.dialog.open(PrescriptionFormComponent, {
+            width: '800px',
+            data: {
+                encounterID: this.selectedEncounter!.encounterID,
+                patientID: this.selectedPatient!.patientID,
+                doctorID: this.doctorId
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result?.success) {
+                this.selectedPatient!.hasPrescription = true;
+                this.snackBar.open('Prescription saved successfully', 'Close', { duration: 3000 });
+                this.loadEncounter(this.selectedPatient!.appointmentID);
+            }
+        });
     }
 
     assignLabTest(): void {
-        this.snackBar.open('Lab test module coming soon', 'Close', { duration: 3000 });
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        if (!this.selectedEncounter) {
+            this.createEncounterAndOpenLabTest();
+        } else {
+            this.openLabTestForm();
+        }
+    }
+
+    createEncounterAndOpenLabTest(): void {
+        const encounterDto = {
+            patientID: this.selectedPatient!.patientID,
+            doctorID: this.doctorId,
+            appointmentID: this.selectedPatient!.appointmentID,
+            encounterType: this.selectedPatient!.isFollowUp ? 1 : 0,
+            chiefComplaint: this.selectedPatient!.chiefComplaint || ''
+        };
+
+        this.emrService.createEncounter(encounterDto).subscribe({
+            next: (response) => {
+                if (response.success) {
+                    this.selectedEncounter = response.data;
+                    this.openLabTestForm();
+                }
+            },
+            error: (error) => {
+                console.error('Error creating encounter:', error);
+                this.snackBar.open('Error creating encounter', 'Close', { duration: 3000 });
+            }
+        });
+    }
+
+    openLabTestForm(): void {
+        const dialogRef = this.dialog.open(LabTestFormComponent, {
+            width: '700px',
+            data: {
+                encounterID: this.selectedEncounter!.encounterID,
+                patientID: this.selectedPatient!.patientID,
+                doctorID: this.doctorId
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result?.success) {
+                this.snackBar.open('Lab tests ordered successfully', 'Close', { duration: 3000 });
+                // Mark patient as follow-up for lab results
+                this.markPatientAsFollowUp();
+            }
+        });
+    }
+
+    markPatientAsFollowUp(): void {
+        this.emrService.updateQueueStatus({
+            queueID: this.selectedPatient!.queueID,
+            newStatus: QueueStatusType.Completed
+        }).subscribe(() => {
+            this.loadQueue();
+            this.snackBar.open('Patient marked for follow-up after lab results', 'Close', { duration: 3000 });
+        });
+    }
+
+    addDiagnosis(): void {
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        if (!this.selectedEncounter) {
+            this.createEncounterAndOpenDiagnosis();
+        } else {
+            this.openDiagnosisForm();
+        }
+    }
+
+    createEncounterAndOpenDiagnosis(): void {
+        const encounterDto = {
+            patientID: this.selectedPatient!.patientID,
+            doctorID: this.doctorId,
+            appointmentID: this.selectedPatient!.appointmentID,
+            encounterType: this.selectedPatient!.isFollowUp ? 1 : 0,
+            chiefComplaint: this.selectedPatient!.chiefComplaint || ''
+        };
+
+        this.emrService.createEncounter(encounterDto).subscribe({
+            next: (response) => {
+                if (response.success) {
+                    this.selectedEncounter = response.data;
+                    this.openDiagnosisForm();
+                }
+            },
+            error: (error) => {
+                console.error('Error creating encounter:', error);
+                this.snackBar.open('Error creating encounter', 'Close', { duration: 3000 });
+            }
+        });
+    }
+
+    openDiagnosisForm(): void {
+        const dialogRef = this.dialog.open(DiagnosisFormComponent, {
+            width: '600px',
+            data: {
+                encounterID: this.selectedEncounter!.encounterID,
+                doctorID: this.doctorId
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result?.success) {
+                this.snackBar.open('Diagnosis added successfully', 'Close', { duration: 3000 });
+                this.loadEncounter(this.selectedPatient!.appointmentID);
+            }
+        });
+    }
+
+    addObservation(): void {
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        if (!this.selectedEncounter) {
+            this.createEncounterAndOpenObservation();
+        } else {
+            this.openObservationForm();
+        }
+    }
+
+    createEncounterAndOpenObservation(): void {
+        const encounterDto = {
+            patientID: this.selectedPatient!.patientID,
+            doctorID: this.doctorId,
+            appointmentID: this.selectedPatient!.appointmentID,
+            encounterType: this.selectedPatient!.isFollowUp ? 1 : 0,
+            chiefComplaint: this.selectedPatient!.chiefComplaint || ''
+        };
+
+        this.emrService.createEncounter(encounterDto).subscribe({
+            next: (response) => {
+                if (response.success) {
+                    this.selectedEncounter = response.data;
+                    this.openObservationForm();
+                }
+            },
+            error: (error) => {
+                console.error('Error creating encounter:', error);
+                this.snackBar.open('Error creating encounter', 'Close', { duration: 3000 });
+            }
+        });
+    }
+
+    openObservationForm(): void {
+        const dialogRef = this.dialog.open(ObservationFormComponent, {
+            width: '600px',
+            data: {
+                encounterID: this.selectedEncounter!.encounterID,
+                doctorID: this.doctorId
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result?.success) {
+                this.snackBar.open('Observations added successfully', 'Close', { duration: 3000 });
+                this.loadEncounter(this.selectedPatient!.appointmentID);
+            }
+        });
+    }
+
+    scheduleFollowUp(): void {
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        const dialogRef = this.dialog.open(FollowupScheduleComponent, {
+            width: '600px',
+            data: {
+                patientID: this.selectedPatient.patientID,
+                doctorID: this.doctorId,
+                patientName: this.selectedPatient.patientName
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result?.success) {
+                // Remove patient from current queue
+                this.emrService.removeFromQueue(this.selectedPatient!.queueID).subscribe({
+                    next: () => {
+                        const date = new Date(result.date).toLocaleDateString();
+                        this.snackBar.open(`Follow-up appointment scheduled for ${date} at ${result.time}. Patient removed from current queue.`, 'Close', { duration: 5000 });
+                        this.loadQueue();
+                        this.selectedPatient = null;
+                        this.selectedEncounter = null;
+                    },
+                    error: (error) => {
+                        console.error('Error removing patient from queue:', error);
+                        this.snackBar.open('Follow-up scheduled but error removing from queue', 'Close', { duration: 3000 });
+                    }
+                });
+            }
+        });
+    }
+
+    completeConsultation(): void {
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        // Remove patient from queue completely
+        this.emrService.removeFromQueue(this.selectedPatient.queueID).subscribe({
+            next: () => {
+                this.snackBar.open(`${this.selectedPatient!.patientName} consultation completed and discharged successfully`, 'Close', { duration: 3000 });
+                this.loadQueue();
+                this.selectedPatient = null;
+                this.selectedEncounter = null;
+            },
+            error: (error) => {
+                console.error('Error completing consultation:', error);
+                this.snackBar.open('Error completing consultation', 'Close', { duration: 3000 });
+            }
+        });
     }
 
     getInitials(name: string): string {
-        return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
+        if (!name || name === 'undefined' || name === 'null') return '?';
+        return name.split(' ').map(n => n[0]).join('').toUpperCase();
     }
 
     formatTime(timeSpan: string): string {
@@ -219,5 +586,26 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         hours = hours % 12 || 12;
         
         return `${hours}:${minutes} ${period}`;
+    }
+
+    getTotalPatients(): number {
+        return this.regularPatients.length + this.followUpPatients.length;
+    }
+
+    getStatusText(status: QueueStatusType): string {
+        switch (status) {
+            case QueueStatusType.Waiting:
+                return 'Waiting';
+            case QueueStatusType.InProgress:
+                return 'In Progress';
+            case QueueStatusType.Completed:
+                return 'Completed';
+            case QueueStatusType.Cancelled:
+                return 'Cancelled';
+            case QueueStatusType.Delayed:
+                return 'Delayed';
+            default:
+                return 'Unknown';
+        }
     }
 }

@@ -11,6 +11,7 @@ import {
     CreatePrescriptionDto,
     CreateLabTestDto,
     CreateTreatmentPlanDto,
+    CreateObservationDto,
     QueuePatient
 } from '../../features/emr/models/emr.models';
 
@@ -35,6 +36,14 @@ export class EmrService {
 
     removeFromQueue(queueId: string): Observable<any> {
         return this.api.delete<any>(`PatientQueue/${queueId}`);
+    }
+
+    syncAppointmentsToQueue(doctorId: string, date?: string): Observable<any> {
+        let endpoint = `PatientQueue/sync/${doctorId}`;
+        if (date) {
+            endpoint += `?date=${date}`;
+        }
+        return this.api.post<any>(endpoint, {});
     }
 
     // Encounters
@@ -69,5 +78,13 @@ export class EmrService {
 
     addTreatmentPlan(dto: CreateTreatmentPlanDto): Observable<any> {
         return this.api.post<any>('Encounter/treatmentplan', dto);
+    }
+
+    addObservation(dto: CreateObservationDto): Observable<any> {
+        return this.api.post<any>('Encounter/observation', dto);
+    }
+
+    createEncounter(dto: any): Observable<any> {
+        return this.api.post<any>('Encounter', dto);
     }
 }

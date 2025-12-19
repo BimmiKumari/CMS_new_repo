@@ -32,6 +32,8 @@ export interface QueuePatient {
     isFollowUp: boolean;
     previousEncounterID?: string;
     profileImagePath?: string;
+    phoneNumber?: string;
+    hasPrescription?: boolean;
 }
 
 export interface DoctorQueueResponse {
@@ -174,14 +176,6 @@ export interface CreateVitalSignsDto {
     height?: number;
 }
 
-export interface CreateDiagnosisDto {
-    encounterID: string;
-    description: string;
-    code?: string;
-    status: string;
-    isPrimary: boolean;
-}
-
 export interface CreatePrescriptionDto {
     encounterID: string;
     patientID: string;
@@ -200,6 +194,19 @@ export interface CreateLabTestDto {
     encounterID: string;
     testName: string;
     testCode?: string;
+    testCategory?: string;
+    instructions?: string;
+    orderedBy: string;
+}
+
+export interface CreateDiagnosisDto {
+    encounterID: string;
+    diagnosisCode: string;
+    diagnosisName: string;
+    description?: string;
+    status: string;
+    isPrimary: boolean;
+    diagnosedBy: string;
 }
 
 export interface CreateTreatmentPlanDto {
@@ -208,4 +215,13 @@ export interface CreateTreatmentPlanDto {
     startDate: string;
     endDate?: string;
     goal?: string;
+}
+
+export interface CreateObservationDto {
+    encounterID: string;
+    observationName: string;
+    value: string;
+    unit?: string;
+    referenceRange?: string;
+    staffID: string;
 }

@@ -8,6 +8,16 @@ namespace CMS.Domain.EMR.Enums
 {
     public enum MedicationFrequency
     {
-        MorningBeforeFood=1, MorningAfterFood=2, AfternoonBeforeFood=3, AfternoonAfterFood=4, NightBeforeFood=5, NightAfterFood=6
+        MorningBeforeFood=1, 
+        MorningAfterFood=2, 
+        AfternoonBeforeFood=3, 
+        AfternoonAfterFood=4, 
+        NightBeforeFood=5, 
+        NightAfterFood=6,
+        OnceDaily=7,
+        TwiceDaily=8,
+        ThreeTimesDaily=9,
+        FourTimesDaily=10,
+        AsNeeded=11
     }
 }
