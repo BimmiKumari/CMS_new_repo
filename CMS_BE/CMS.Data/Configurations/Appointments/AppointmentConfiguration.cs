@@ -34,6 +34,15 @@ namespace CMS.Data.Configurations.Appointments
                 .WithMany()
                 .HasForeignKey(a => a.CreatedBy)
                 .OnDelete(DeleteBehavior.NoAction);
+            
+            // User ID foreign key (patient user)
+            builder.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(a => a.user_id)
+                .OnDelete(DeleteBehavior.NoAction);
+            
+            // Add index on user_id for performance
+            builder.HasIndex(a => a.user_id);
                 
             // Properties
             builder.Property(a => a.ReasonForVisit)

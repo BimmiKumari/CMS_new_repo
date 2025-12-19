@@ -14,6 +14,7 @@ namespace CMS.Domain.Appointments.Entities
     {
         public Guid AppointmentID { get; set; }
         public Guid PatientID { get; set; }
+        public Guid? user_id { get; set; } // Direct link to user for easier querying
         public Guid DoctorID { get; set; }
         public DateTime AppointmentDate { get; set; } // Date of the appointment
         public TimeSpan StartTime { get; set; }

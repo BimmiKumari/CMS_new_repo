@@ -48,10 +48,14 @@ namespace CMS.Application.EMR.Services
             var emrRecord = await _emrRepository.GetByPatientIdAsync(dto.PatientID);
             if (emrRecord == null)
             {
+                // Fetch patient to get user_id
+                var patient = await _context.Patients.FindAsync(dto.PatientID);
+
                 emrRecord = await _emrRepository.CreateAsync(new EMRRecord
                 {
                     EMRRecordID = Guid.NewGuid(),
-                    PatientID = dto.PatientID
+                    PatientID = dto.PatientID,
+                    user_id = patient?.user_id // Link user_id if available
                 });
                 _logger.LogInformation($"Created new EMR record {emrRecord.EMRRecordID} for patient {dto.PatientID}");
             }
@@ -130,17 +134,108 @@ namespace CMS.Application.EMR.Services
 
                 var diagnoses = encounter.Diagnoses?
                     .Where(d => !d.IsDeleted)
-                    .Select(d => d.DiagnosisName)
-                    .ToList() ?? new List<string>();
+                    .Select(d => new DiagnosisDto
+                    {
+                        DiagnosisID = d.DiagnosisID,
+                        DiagnosisCode = d.DiagnosisCode,
+                        DiagnosisName = d.DiagnosisName,
+                        Description = d.Description,
+                        Status = d.Status,
+                        IsPrimary = d.IsPrimary,
+                        DiagnosedAt = d.DiagnosedAt
+                    })
+                    .ToList() ?? new List<DiagnosisDto>();
+
+                var labTests = encounter.LabTests?
+                    .Where(lt => !lt.IsDeleted)
+                    .Select(lt => new LabTestDto
+                    {
+                        LabTestID = lt.LabTestID,
+                        TestName = lt.TestName,
+                        TestCode = lt.TestCode,
+                        TestCategory = lt.TestCategory,
+                        Status = lt.Status,
+                        Results = lt.Results,
+                        ResultsFileUrl = lt.ResultsFileUrl,
+                        IsAbnormal = lt.IsAbnormal,
+                        OrderedAt = lt.OrderedAt,
+                        CompletedAt = lt.CompletedAt
+                    }).ToList() ?? new List<LabTestDto>();
+
+                var observations = encounter.Observations?
+                    .Where(o => !o.IsDeleted)
+                    .Select(o => new ObservationDto
+                    {
+                        ObservationID = o.ObservationID,
+                        ObservationName = o.ObservationName,
+                        Value = o.Value,
+                        Unit = o.Unit,
+                        ReferenceRange = o.ReferenceRange,
+                        DateRecorded = o.DateRecorded
+                    }).ToList() ?? new List<ObservationDto>();
+
+                var prescriptions = encounter.Prescriptions?
+                    .Where(p => !p.IsDeleted)
+                    .Select(p => new PrescriptionDto
+                    {
+                        PrescriptionID = p.PrescriptionID,
+                        MedicationName = p.MedicationName,
+                        Dosage = p.Dosage,
+                        Unit = p.Unit,
+                        Frequency = p.Frequency,
+                        Duration = p.Duration,
+                        Notes = p.Notes,
+                        CreatedAt = p.CreatedAt
+                    }).ToList() ?? new List<PrescriptionDto>();
+
+                var treatmentPlans = encounter.TreatmentPlans?
+                    .Where(tp => !tp.IsDeleted)
+                    .Select(tp => new TreatmentPlanDto
+                    {
+                        TreatmentPlanID = tp.TreatmentPlanID,
+                        PlanDescription = tp.PlanDescription,
+                        Goals = tp.Goals,
+                        Instructions = tp.Instructions,
+                        DietaryAdvice = tp.DietaryAdvice,
+                        FollowUpDate = tp.FollowUpDate,
+                        CreatedAt = tp.CreatedAt
+                    }).ToList() ?? new List<TreatmentPlanDto>();
+
+                var vitalSigns = encounter.VitalSigns?
+                    .Where(v => !v.IsDeleted)
+                    .Select(v => new VitalSignsDto
+                    {
+                        VitalSignsID = v.VitalSignsID,
+                        EncounterID = v.EncounterID,
+                        Temperature = v.Temperature,
+                        TemperatureUnit = v.TemperatureUnit,
+                        SystolicBP = v.SystolicBP,
+                        DiastolicBP = v.DiastolicBP,
+                        HeartRate = v.HeartRate,
+                        RespiratoryRate = v.RespiratoryRate,
+                        OxygenSaturation = v.OxygenSaturation,
+                        Height = v.Height,
+                        Weight = v.Weight,
+                        BMI = v.BMI,
+                        Notes = v.Notes,
+                        RecordedAt = v.RecordedAt
+                    }).ToList() ?? new List<VitalSignsDto>();
 
                 summaries.Add(new EncounterSummaryDto
                 {
                     EncounterID = encounter.EncounterID,
+                    AppointmentID = encounter.AppointmentID,
                     EncounterDate = encounter.EncounterDate,
                     EncounterType = encounter.EncounterType,
                     DoctorName = doctor?.User != null ? $"Dr. {doctor.User.Name}" : "Unknown",
                     ChiefComplaint = encounter.ChiefComplaint,
-                    Diagnoses = diagnoses
+                    ClinicalNotes = encounter.ClinicalNotes,
+                    Diagnoses = diagnoses,
+                    LabTests = labTests,
+                    Observations = observations,
+                    Prescriptions = prescriptions,
+                    TreatmentPlans = treatmentPlans,
+                    VitalSigns = vitalSigns
                 });
             }
 

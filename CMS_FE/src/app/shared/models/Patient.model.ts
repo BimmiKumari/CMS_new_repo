@@ -1,5 +1,6 @@
 export interface Patient {
     patient_id?: string; // Added to match backend response
+    user_id?: string; // User ID for linking to user account
     date_of_birth: string;
     sex: string;
     country: string;

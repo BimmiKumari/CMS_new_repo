@@ -1,4 +1,5 @@
 using CMS.Domain.Clinic.Entities;
+using CMS.Domain.Auth.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -49,6 +50,15 @@ namespace CMS.Data.Configurations.Clinic
                 .WithMany()
                 .HasForeignKey(e => e.DoctorID)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            // User ID foreign key (patient user)
+            builder.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.user_id)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // Add index on user_id for performance
+            builder.HasIndex(e => e.user_id);
 
             // Soft Delete Query Filter
             builder.HasQueryFilter(e => !e.IsDeleted);

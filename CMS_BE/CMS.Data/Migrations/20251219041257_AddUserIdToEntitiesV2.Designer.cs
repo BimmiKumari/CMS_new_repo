@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS.Data.Migrations
 {
     [DbContext(typeof(CmsDbContext))]
-    [Migration("20251218233154_removing")]
-    partial class removing
+    [Migration("20251219041257_AddUserIdToEntitiesV2")]
+    partial class AddUserIdToEntitiesV2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -83,6 +83,9 @@ namespace CMS.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<Guid?>("user_id")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("AppointmentID");
 
                     b.HasIndex("CreatedBy");
@@ -90,6 +93,8 @@ namespace CMS.Data.Migrations
                     b.HasIndex("DoctorID");
 
                     b.HasIndex("PatientID");
+
+                    b.HasIndex("user_id");
 
                     b.ToTable("Appointments");
                 });
@@ -164,7 +169,12 @@ namespace CMS.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid?>("user_id")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("patient_id");
+
+                    b.HasIndex("user_id");
 
                     b.ToTable("Patients", (string)null);
                 });
@@ -841,6 +851,9 @@ namespace CMS.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<Guid?>("user_id")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("QueueID");
 
                     b.HasIndex("AppointmentID");
@@ -850,6 +863,8 @@ namespace CMS.Data.Migrations
                     b.HasIndex("PatientID");
 
                     b.HasIndex("QueueStatus");
+
+                    b.HasIndex("user_id");
 
                     b.HasIndex("DoctorID", "AppointmentDate", "QueueZone");
 
@@ -939,13 +954,16 @@ namespace CMS.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid>("PatientID")
+                    b.Property<Guid?>("PatientID")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid?>("user_id")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("EMRRecordID");
 
@@ -954,7 +972,12 @@ namespace CMS.Data.Migrations
                         .HasFilter("[MedicalRecordNumber] IS NOT NULL");
 
                     b.HasIndex("PatientID")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[PatientID] IS NOT NULL");
+
+                    b.HasIndex("user_id")
+                        .IsUnique()
+                        .HasFilter("[user_id] IS NOT NULL");
 
                     b.ToTable("EMRRecords", (string)null);
                 });
@@ -1682,6 +1705,21 @@ namespace CMS.Data.Migrations
                         .HasForeignKey("PatientID")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.HasOne("CMS.Domain.Auth.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("user_id")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("CMS.Domain.Appointments.Entities.Patient", b =>
+                {
+                    b.HasOne("CMS.Domain.Auth.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("user_id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CMS.Domain.Appointments.Entities.Payment", b =>
@@ -1795,6 +1833,11 @@ namespace CMS.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Auth.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("user_id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Appointment");
 
                     b.Navigation("Doctor");
@@ -1818,10 +1861,16 @@ namespace CMS.Data.Migrations
                     b.HasOne("CMS.Domain.Appointments.Entities.Patient", "Patient")
                         .WithOne("EMRRecord")
                         .HasForeignKey("CMS.Domain.EMR.Entities.EMRRecord", "PatientID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CMS.Domain.Auth.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("user_id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Patient");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CMS.Domain.EMR.Entities.LabTest", b =>

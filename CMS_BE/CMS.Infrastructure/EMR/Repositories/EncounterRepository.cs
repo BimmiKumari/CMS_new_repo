@@ -40,9 +40,48 @@ namespace CMS.Infrastructure.EMR.Repositories
 
         public async Task<List<PatientEncounter>> GetByPatientIdAsync(Guid patientId)
         {
+            // First, try to find the patient to see if they have a user_id
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.patient_id == patientId);
+
+            if (patient != null && patient.user_id.HasValue)
+            {
+                // If patient has a user_id, find all encounters for that user via EMRRecord
+                var emr = await _context.EMRRecords
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.Doctor)
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.Diagnoses)
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.LabTests)
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.Observations)
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.Prescriptions)
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.TreatmentPlans)
+                    .Include(e => e.Encounters)
+                        .ThenInclude(enc => enc.VitalSigns)
+                    .FirstOrDefaultAsync(e => e.user_id == patient.user_id.Value && !e.IsDeleted);
+
+                if (emr != null && emr.Encounters != null)
+                {
+                    return emr.Encounters
+                        .Where(e => !e.IsDeleted)
+                        .OrderByDescending(e => e.EncounterDate)
+                        .ToList();
+                }
+            }
+
+            // Fallback to finding by PatientID
             return await _context.PatientEncounters
                 .Include(e => e.Doctor)
                 .Include(e => e.Diagnoses)
+                .Include(e => e.LabTests)
+                .Include(e => e.Observations)
+                .Include(e => e.Prescriptions)
+                .Include(e => e.TreatmentPlans)
+                .Include(e => e.VitalSigns)
                 .Where(e => e.PatientID == patientId && !e.IsDeleted)
                 .OrderByDescending(e => e.EncounterDate)
                 .ToListAsync();
@@ -55,6 +94,9 @@ namespace CMS.Infrastructure.EMR.Repositories
                 .Include(e => e.VitalSigns)
                 .Include(e => e.Diagnoses)
                 .Include(e => e.Prescriptions)
+                .Include(e => e.LabTests)
+                .Include(e => e.Observations)
+                .Include(e => e.TreatmentPlans)
                 .Where(e => e.PatientID == patientId && !e.IsDeleted)
                 .OrderByDescending(e => e.EncounterDate)
                 .FirstOrDefaultAsync();

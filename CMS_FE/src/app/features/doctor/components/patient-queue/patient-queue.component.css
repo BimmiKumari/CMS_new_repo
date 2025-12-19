@@ -522,3 +522,67 @@
   border-color: #10b981 !important;
   color: #065f46 !important;
 }
+
+/* History Table Styles */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.view-emr-btn {
+  height: 36px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.view-emr-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.history-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.history-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+}
+
+.history-table tr:hover td {
+  background: #f9fafb;
+}
+
+.no-history-msg {
+  padding: 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.history-divider {
+  margin: 20px 0;
+}
+
+.past-encounters-section {
+  max-height: 250px;
+  overflow-y: auto;
+}

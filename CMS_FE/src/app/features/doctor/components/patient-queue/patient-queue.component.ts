@@ -18,6 +18,7 @@ import { LabTestFormComponent } from '../lab-test-form/lab-test-form.component';
 import { DiagnosisFormComponent } from '../diagnosis-form/diagnosis-form.component';
 import { ObservationFormComponent } from '../observation-form/observation-form.component';
 import { FollowupScheduleComponent } from '../followup-schedule/followup-schedule.component';
+import { EncounterDetailsDialogComponent } from '../encounter-details-dialog/encounter-details-dialog.component';
 import { AppointmentService } from '../../../../core/services/appointment.service';
 import {
     DoctorQueueResponse,
@@ -53,6 +54,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     followUpPatients: QueuePatient[] = [];
     selectedPatient: QueuePatient | null = null;
     selectedEncounter: EncounterDetail | null = null;
+    pastEncounters: EncounterDetail[] = [];
     doctorId: string = '';
     refreshSubscription?: Subscription;
 
@@ -84,12 +86,12 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         const token = localStorage.getItem('accessToken');
         console.log('Token exists:', !!token);
         console.log('Doctor ID:', this.doctorId);
-        
+
         if (!token) {
             this.snackBar.open('Please login again - session expired', 'Close', { duration: 5000 });
             return;
         }
-        
+
         if (this.doctorId) {
             this.loadQueue();
             // Auto-refresh queue every 10 minutes
@@ -107,19 +109,19 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         this.emrService.getDoctorQueue(this.doctorId).subscribe({
             next: (res: any) => {
                 console.log('Queue API response:', res);
-                
+
                 // Extract data from response
                 const data = res.data || res;
                 this.regularPatients = data.regularPatients || [];
                 this.followUpPatients = data.followUpPatients || [];
-                
+
                 console.log('Regular patients:', this.regularPatients.length);
                 console.log('Follow-up patients:', this.followUpPatients.length);
                 console.log('Sample regular patient:', this.regularPatients[0]);
                 console.log('Sample follow-up patient:', this.followUpPatients[0]);
-                
 
-                
+
+
                 // Auto-select first waiting patient
                 if (!this.selectedPatient) {
                     const firstPatient = this.regularPatients.find(p => p.queueStatus === QueueStatusType.InProgress)
@@ -151,12 +153,12 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
 
     loadEncounter(appointmentId: string): void {
         const userIdForEMR = this.selectedPatient!.patientID;
-        
+
         this.emrService.getPatientEncounters(userIdForEMR).subscribe({
             next: (res: any) => {
                 if (res.success) {
                     const encounters = res.data as EncounterDetail[];
-                    
+
                     // Find encounter matching today's appointment
                     const encounter = encounters.find((e: EncounterDetail) => e.appointmentID === appointmentId);
                     if (encounter) {
@@ -169,6 +171,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
                     }
 
                     // Load medical history from previous encounters
+                    this.pastEncounters = encounters.filter(e => e.appointmentID !== appointmentId);
                     this.loadMedicalHistory(encounters);
                 }
             },
@@ -190,17 +193,17 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             .map(d => d.description)
             .filter((value, index, self) => self.indexOf(value) === index)
             .join(', ');
-        
+
         this.previousConditions = conditions || 'No previous conditions recorded';
 
         // Get current medications from latest prescription
         const latestEncounter = encounters
             .filter(e => e.prescriptions && e.prescriptions.length > 0)
             .sort((a, b) => new Date(b.encounterDate).getTime() - new Date(a.encounterDate).getTime())[0];
-        
-        if (latestEncounter?.prescriptions?.[0]?.items) {
-            const medications = latestEncounter.prescriptions[0].items
-                .map(item => `${item.medicineName} ${item.dosage}`)
+
+        if (latestEncounter?.prescriptions?.length) {
+            const medications = latestEncounter.prescriptions
+                .map(p => `${p.medicationName} ${p.dosage}`)
                 .join(', ');
             this.currentMedications = medications;
         } else {
@@ -256,6 +259,39 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     updateEHR(): void {
+        if (!this.selectedPatient) return;
+
+        if (!this.selectedEncounter) {
+            this.createEncounterAndUpdateEHR();
+        } else {
+            this.performEHRUpdate();
+        }
+    }
+
+    createEncounterAndUpdateEHR(): void {
+        const encounterDto = {
+            patientID: this.selectedPatient!.patientID,
+            doctorID: this.doctorId,
+            appointmentID: this.selectedPatient!.appointmentID,
+            encounterType: this.selectedPatient!.isFollowUp ? 1 : 0,
+            chiefComplaint: this.chiefComplaint || this.selectedPatient!.chiefComplaint || ''
+        };
+
+        this.emrService.createEncounter(encounterDto).subscribe({
+            next: (response) => {
+                if (response.success) {
+                    this.selectedEncounter = response.data;
+                    this.performEHRUpdate();
+                }
+            },
+            error: (error) => {
+                console.error('Error creating encounter:', error);
+                this.snackBar.open('Error creating encounter', 'Close', { duration: 3000 });
+            }
+        });
+    }
+
+    performEHRUpdate(): void {
         if (!this.selectedEncounter) return;
 
         const updateDto: UpdateEncounterDto = {
@@ -579,12 +615,12 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         // TimeSpan format is HH:mm:ss, convert to 12-hour format
         const parts = timeSpan.split(':');
         if (parts.length < 2) return timeSpan;
-        
+
         let hours = parseInt(parts[0]);
         const minutes = parts[1];
         const period = hours >= 12 ? 'PM' : 'AM';
         hours = hours % 12 || 12;
-        
+
         return `${hours}:${minutes} ${period}`;
     }
 
@@ -607,5 +643,12 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             default:
                 return 'Unknown';
         }
+    }
+
+    viewEncounterDetails(encounter: EncounterDetail): void {
+        this.dialog.open(EncounterDetailsDialogComponent, {
+            width: '900px',
+            data: encounter
+        });
     }
 }

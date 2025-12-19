@@ -1,4 +1,5 @@
 using CMS.Domain.EMR.Entities;
+using CMS.Domain.Auth.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -30,6 +31,18 @@ namespace CMS.Data.Configurations.EMR
                 .HasDefaultValueSql("GETUTCDATE()");
             
             // Relationships
+            // User relationship - one EMR per user (unique constraint)
+            builder.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.user_id)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // Add unique index on user_id to ensure one EMR per user
+            builder.HasIndex(e => e.user_id)
+                .IsUnique()
+                .HasFilter("[user_id] IS NOT NULL");
+            
+            // Patient relationship (backward compatibility, nullable)
             builder.HasOne(e => e.Patient)
                 .WithOne(p => p.EMRRecord)
                 .HasForeignKey<EMRRecord>(e => e.PatientID)
