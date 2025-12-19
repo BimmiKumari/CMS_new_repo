@@ -32,6 +32,15 @@ namespace CMS.Data.Configurations.Appointments
                   
             builder.Property(p => p.pincode)
                   .HasMaxLength(20);
+            
+            // Configure user_id foreign key relationship
+            builder.HasOne(p => p.User)
+                  .WithMany()
+                  .HasForeignKey(p => p.user_id)
+                  .OnDelete(DeleteBehavior.Restrict);
+            
+            // Add index on user_id for performance
+            builder.HasIndex(p => p.user_id);
         }
     }
 }

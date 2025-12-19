@@ -8,6 +8,8 @@ namespace CMS.Application.Appointments.DTOs.Requests
         [Required]
         public Guid PatientID { get; set; }
         
+        public Guid? user_id { get; set; } // User ID for linking to user
+        
         [Required]
         public Guid DoctorID { get; set; }
         

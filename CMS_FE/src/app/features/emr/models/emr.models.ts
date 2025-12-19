@@ -31,6 +31,7 @@ export interface QueuePatient {
     checkedInAt?: string;
     isFollowUp: boolean;
     previousEncounterID?: string;
+    user_id?: string;
     profileImagePath?: string;
     phoneNumber?: string;
     hasPrescription?: boolean;
@@ -68,8 +69,9 @@ export interface VitalSigns {
 export interface Diagnosis {
     diagnosisID: string;
     encounterID: string;
+    diagnosisName: string;
     description: string;
-    code?: string;
+    diagnosisCode?: string;
     status: string;
     isPrimary: boolean;
 }
@@ -85,12 +87,13 @@ export interface PrescriptionItem {
 
 export interface Prescription {
     prescriptionID: string;
-    encounterID: string;
-    doctorID: string;
-    patientID: string;
-    prescriptionDate: string;
-    notes?: string;
-    items: PrescriptionItem[];
+    medicationName: string;
+    dosage: string;
+    unit: string;
+    frequency: string;
+    duration: string;
+    notes: string;
+    createdAt: string;
 }
 
 export interface LabTest {

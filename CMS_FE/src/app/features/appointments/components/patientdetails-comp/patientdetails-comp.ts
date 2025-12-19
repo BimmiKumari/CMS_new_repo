@@ -17,6 +17,7 @@ import { PatientService } from '../../../../core/services/patient-service';
 import { PaymentService, PaymentRequest } from '../../../../core/services/payment.service';
 import { Router } from '@angular/router';
 import { CalendarService } from '../../../calendar/services/calendar.service';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-patientdetails-comp',
@@ -43,7 +44,8 @@ export class PatientdetailsComp implements OnInit {
     private calendarService: CalendarService,
     private router: Router,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private authService: AuthService
   ) {
     this.patientForm = this.fb.group({
       date_of_birth: ['', Validators.required],
@@ -132,8 +134,14 @@ export class PatientdetailsComp implements OnInit {
     this.isSubmitting = true;
     const formValue = this.patientForm.value;
 
+    // Get user_id from AuthService
+    const currentUser = this.authService.getCurrentUser();
+    const userId = currentUser?.userID || currentUser?.id;
+    console.log('User ID from AuthService:', userId);
+
     // Format data for API
     const patientData = {
+      user_id: userId || undefined, // Add user_id for EMR linking
       date_of_birth: formValue.date_of_birth ? new Date(formValue.date_of_birth).toISOString().split('T')[0] : '1990-01-01',
       sex: formValue.sex || 'M',
       country: formValue.country || '',
@@ -230,9 +238,15 @@ export class PatientdetailsComp implements OnInit {
     console.log('Frontend - seeking_followup form value:', this.patientForm.get('seeking_followup')?.value);
     console.log('Frontend - isFollowup variable:', isFollowup);
 
+    // Get user_id from AuthService
+    const currentUser = this.authService.getCurrentUser();
+    const userId = currentUser?.userID || currentUser?.id;
+    console.log('User ID from AuthService for payment:', userId);
+
     // Step 1: Submit patient data first
     const formValue = this.patientForm.value;
     const patientData = {
+      user_id: userId || undefined, // Add user_id for EMR linking
       date_of_birth: formValue.date_of_birth ? new Date(formValue.date_of_birth).toISOString().split('T')[0] : '1990-01-01',
       sex: formValue.sex || 'M',
       country: formValue.country || '',
@@ -266,7 +280,6 @@ export class PatientdetailsComp implements OnInit {
         }
 
         // IMPORTANT: Use the patient_id from the newly created patient record, not from localStorage
-        // The patientResponse.patient contains the newly created patient with its patient_id
         const patientId = patientResponse?.patient?.patient_id;
 
         if (!patientId) {
@@ -289,10 +302,10 @@ export class PatientdetailsComp implements OnInit {
           isFollowup: isFollowup,
           currency: 'INR',
           patientId: patientId,
+          userId: userId || undefined, // Add userId for EMR linking
           description: 'Consultation Fee',
           // Include appointment booking details
           doctorId: this.appointmentData.doctorId,
-
           startTime: this.appointmentData.startTime,
           endTime: this.calculateEndTime(this.appointmentData.startTime),
           appointmentDate: this.appointmentData.appointmentDate,
@@ -300,19 +313,6 @@ export class PatientdetailsComp implements OnInit {
         };
 
         console.log('Final PaymentRequest with appointment details:', paymentRequest);
-
-        // Validate required fields
-        if (!patientId) {
-          console.error('Missing required data - PatientId:', patientId);
-          this.snackBar.open('Missing patient information. Please try again.', 'Close', {
-            duration: 5000,
-            panelClass: ['error-snackbar']
-          });
-          this.isSubmitting = false;
-          return;
-        }
-
-        console.log('Frontend - PaymentRequest object with appointment details:', paymentRequest);
 
         this.paymentService.createOrder(paymentRequest).subscribe({
           next: (response) => {
@@ -324,8 +324,8 @@ export class PatientdetailsComp implements OnInit {
                 razorpayOrderId: response.orderId,
                 razorpayPaymentId: paymentResponse.razorpay_payment_id,
                 razorpaySignature: paymentResponse.razorpay_signature,
-                // Add robust appointment data
                 patientId: paymentRequest.patientId,
+                userId: paymentRequest.userId, // Include userId
                 doctorId: paymentRequest.doctorId,
                 appointmentDate: paymentRequest.appointmentDate,
                 startTime: paymentRequest.startTime,
@@ -356,8 +356,6 @@ export class PatientdetailsComp implements OnInit {
                 },
                 error: (error) => {
                   console.error('Payment verification error:', error);
-                  console.error('Error status:', error.status);
-                  console.error('Error message:', error.error);
                   this.snackBar.open('Payment verification failed: ' + (error.error?.message || error.message), 'Close', {
                     duration: 5000,
                     panelClass: ['error-snackbar']
@@ -398,7 +396,6 @@ export class PatientdetailsComp implements OnInit {
   }
 
   private calculateEndTime(startTime: string): string {
-    // Parse start time and add 30 minutes (default slot duration)
     try {
       const [time, period] = startTime.split(' ');
       const [hours, minutes] = time.split(':').map(Number);
@@ -419,7 +416,7 @@ export class PatientdetailsComp implements OnInit {
 
       return `${displayHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')} ${endPeriod}`;
     } catch {
-      return startTime; // Return start time if calculation fails
+      return startTime;
     }
   }
 }
