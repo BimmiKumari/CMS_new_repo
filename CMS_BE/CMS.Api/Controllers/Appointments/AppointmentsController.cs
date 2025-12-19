@@ -92,5 +92,25 @@ namespace CMS.Api.Controllers.Appointments
                 return StatusCode(500, new { error = ex.Message, stackTrace = ex.StackTrace });
             }
         }
+        
+        [HttpGet("test/followup/{doctorId}")]
+        public async Task<IActionResult> GetFollowUpAppointments(Guid doctorId)
+        {
+            try
+            {
+                var appointments = await _appointmentService.GetDoctorAppointmentsAsync(doctorId, DateTime.Today, DateTime.Today.AddDays(30));
+                var followUps = appointments.Where(a => a.AppointmentType == Domain.Appointments.Enums.AppointmentType.FollowUp);
+                return Ok(new { 
+                    success = true, 
+                    count = followUps.Count(), 
+                    appointments = followUps 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching follow-up appointments");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
     }
 }

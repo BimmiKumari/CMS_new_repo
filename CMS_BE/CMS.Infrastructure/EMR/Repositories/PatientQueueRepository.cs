@@ -26,20 +26,33 @@ namespace CMS.Infrastructure.EMR.Repositories
         public async Task<List<PatientQueue>> GetQueueByDoctorAsync(Guid doctorId, DateTime date)
         {
             var startOfDay = date.Date;
-            var endOfDay = startOfDay.AddDays(1);
+            var endOfDay = startOfDay.AddDays(30); // Extended to 30 days to catch follow-ups
 
-            return await _context.PatientQueues
+            var result = await _context.PatientQueues
                 .Include(q => q.Appointment)
                 .Include(q => q.Patient)
                 .Include(q => q.Doctor)
                 .Where(q => q.DoctorID == doctorId 
-                    && q.AppointmentDate >= startOfDay 
-                    && q.AppointmentDate < endOfDay
+                    && q.AppointmentDate.Date >= startOfDay 
+                    && q.AppointmentDate.Date < endOfDay
                     && !q.IsDeleted)
-                .OrderBy(q => q.QueueZone)
+                .OrderBy(q => q.AppointmentDate)
+                .ThenBy(q => q.QueueZone)
                 .ThenBy(q => q.AppointmentTimeSlot)
                 .ThenBy(q => q.QueuePosition)
                 .ToListAsync();
+
+            // Debug logging
+            Console.WriteLine($"[DEBUG] GetQueueByDoctorAsync - DoctorId: {doctorId}, Date: {date:yyyy-MM-dd}");
+            Console.WriteLine($"[DEBUG] Date range: {startOfDay:yyyy-MM-dd HH:mm:ss} to {endOfDay:yyyy-MM-dd HH:mm:ss} (30 days)");
+            Console.WriteLine($"[DEBUG] Found {result.Count} queue entries");
+            
+            foreach (var q in result)
+            {
+                Console.WriteLine($"[DEBUG] Queue: {q.QueueID}, Patient: {q.PatientID}, AppointmentDate: {q.AppointmentDate:yyyy-MM-dd HH:mm:ss}, Zone: {q.QueueZone}");
+            }
+
+            return result;
         }
 
         public async Task<PatientQueue> CreateAsync(PatientQueue queue)

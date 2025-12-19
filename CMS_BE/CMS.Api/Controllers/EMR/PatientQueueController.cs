@@ -1,8 +1,10 @@
 using CMS.Application.EMR.DTOs;
 using CMS.Application.EMR.Interfaces;
 using CMS.Application.Shared.DTOs;
+using CMS.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CMS.Api.Controllers.EMR
@@ -34,15 +36,22 @@ namespace CMS.Api.Controllers.EMR
         {
             try
             {
-                var queueDate = date ?? DateTime.UtcNow.Date;
-                _logger.LogInformation($"Getting queue for doctor {doctorId} on {queueDate}");
+                var queueDate = date ?? DateTime.Now.Date;
+                _logger.LogInformation($"[QUEUE] Getting queue for doctor {doctorId} on {queueDate:yyyy-MM-dd}");
+                Console.WriteLine($"[QUEUE] Controller - DoctorId: {doctorId}, Date: {queueDate:yyyy-MM-dd}");
+                
                 var queue = await _queueService.GetDoctorQueueAsync(doctorId, queueDate);
-                _logger.LogInformation($"Found {queue.RegularPatients.Count} regular, {queue.FollowUpPatients.Count} follow-up patients");
+                
+                _logger.LogInformation($"[QUEUE] Found {queue.RegularPatients.Count} regular, {queue.FollowUpPatients.Count} follow-up patients");
+                Console.WriteLine($"[QUEUE] Result - Regular: {queue.RegularPatients.Count}, FollowUp: {queue.FollowUpPatients.Count}, Emergency: {queue.EmergencyCases.Count}");
+                
                 return Ok(ApiResponse<DoctorQueueResponseDto>.SuccessResponse(queue, "Queue retrieved successfully"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error getting queue for doctor {doctorId}");
+                Console.WriteLine($"[QUEUE ERROR] {ex.Message}");
+                Console.WriteLine($"[QUEUE ERROR] {ex.StackTrace}");
                 return StatusCode(500, ApiResponse<DoctorQueueResponseDto>.ErrorResponse("An error occurred while retrieving the queue"));
             }
         }
@@ -114,5 +123,49 @@ namespace CMS.Api.Controllers.EMR
                 return StatusCode(500, new { message = "An error occurred while removing from queue" });
             }
         }
+
+        /// <summary>
+        /// Test endpoint to check raw queue data
+        /// </summary>
+        [HttpGet("test/{doctorId}")]
+        public async Task<ActionResult> TestQueueData(Guid doctorId)
+        {
+            try
+            {
+                using var scope = HttpContext.RequestServices.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<CmsDbContext>();
+                
+                var today = DateTime.Now.Date;
+                var tomorrow = today.AddDays(1);
+                
+                var rawQueues = await context.PatientQueues
+                    .Where(q => q.DoctorID == doctorId && !q.IsDeleted)
+                    .Select(q => new {
+                        q.QueueID,
+                        q.PatientID,
+                        q.DoctorID,
+                        q.AppointmentDate,
+                        q.QueueStatus,
+                        q.IsDeleted
+                    })
+                    .ToListAsync();
+                
+                return Ok(new {
+                    doctorId,
+                    searchDate = today.ToString("yyyy-MM-dd"),
+                    totalQueues = rawQueues.Count,
+                    todayQueues = rawQueues.Where(q => q.AppointmentDate.Date == today).Count(),
+                    queues = rawQueues
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+
+
+
     }
 }

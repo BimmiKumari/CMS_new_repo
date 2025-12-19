@@ -1,6 +1,7 @@
 using CMS.Application.EMR.DTOs;
 using CMS.Application.EMR.Interfaces;
 using CMS.Data;
+using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Appointments.Enums;
 using CMS.Domain.Clinic.Entities;
 using CMS.Domain.Clinic.Enums;
@@ -33,10 +34,20 @@ namespace CMS.Application.EMR.Services
 
             foreach (var queue in queues)
             {
-                var patient = await _context.Patients.FindAsync(queue.PatientID);
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == queue.PatientID);
+                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.patient_id == queue.PatientID);
                 
-                if (patient == null || user == null) continue;
+                if (patient == null) 
+                {
+                    Console.WriteLine($"[DEBUG] Skipping queue entry - Patient not found for ID: {queue.PatientID}");
+                    continue;
+                }
+                
+                // Get user name through appointment -> patient relationship
+                var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == queue.AppointmentID);
+                var user = appointment != null ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.PatientID) : null;
+                var patientName = user?.Name ?? $"Patient {queue.PatientID.ToString().Substring(0, 8)}";
+                
+                Console.WriteLine($"[DEBUG] Found patient: {patientName}");
 
                 // Use AppointmentType from Appointment table if available, else fallback to QueueZone
                 var appointmentType = queue.Appointment?.AppointmentType ?? queue.QueueZone;
@@ -58,7 +69,7 @@ namespace CMS.Application.EMR.Services
                     QueueID = queue.QueueID,
                     AppointmentID = queue.AppointmentID,
                     PatientID = queue.PatientID,
-                    PatientName = user?.Name ?? "Unknown",
+                    PatientName = patientName,
                     Age = CalculateAge(patient.date_of_birth),
                     Sex = patient.sex,
                     BloodGroup = patient.blood_group,
@@ -72,7 +83,8 @@ namespace CMS.Application.EMR.Services
                     CheckedInAt = queue.CheckedInAt,
                     IsFollowUp = appointmentType == AppointmentType.FollowUp,
                     PreviousEncounterID = previousEncounterId,
-                    ProfileImagePath = patient.profile_image_path
+                    ProfileImagePath = patient.profile_image_path,
+                    PhoneNumber = user?.PhoneNumber
                 };
 
                 // Categorize by queue zone
@@ -202,7 +214,8 @@ namespace CMS.Application.EMR.Services
             await _queueRepository.UpdateAsync(queue);
 
             var patient = await _context.Patients.FindAsync(queue.PatientID);
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == queue.PatientID);
+            var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == queue.AppointmentID);
+            var user = appointment != null ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.PatientID) : null;
 
             return new QueuePatientDto
             {
@@ -226,6 +239,8 @@ namespace CMS.Application.EMR.Services
         {
             return await _queueRepository.DeleteAsync(queueId);
         }
+
+
 
         private int CalculateAge(DateOnly dateOfBirth)
         {

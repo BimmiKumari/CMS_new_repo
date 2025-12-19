@@ -300,20 +300,25 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Seed database on startup
+// Apply migrations and seed database on startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<CmsDbContext>();
+        
+        // Apply pending migrations
+        await context.Database.MigrateAsync();
+        Log.Information("Database migrations applied successfully");
+        
         var configuration = services.GetRequiredService<IConfiguration>();
         await DatabaseSeeder.SeedAsync(context, configuration);
         Log.Information("Database seeding completed successfully");
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "An error occurred while seeding the database");
+        Log.Error(ex, "An error occurred while applying migrations or seeding the database");
     }
 }
 

@@ -8,7 +8,12 @@
                     <span class="dot regular"></span>
                     Regular Patients
                 </div>
-                <span class="patient-count">{{ regularPatients.length }} patients waiting</span>
+                <div class="header-actions">
+                    <span class="patient-count">{{ regularPatients.length }} patients waiting</span>
+                    <button mat-icon-button (click)="refreshQueue()" title="Refresh Queue">
+                        <mat-icon>refresh</mat-icon>
+                    </button>
+                </div>
             </div>
 
             <div class="patient-list">
@@ -18,20 +23,19 @@
                     <div class="card-content">
                         <div class="avatar-mini">
                             <img *ngIf="p.profileImagePath" [src]="p.profileImagePath" alt="">
-                            <div *ngIf="!p.profileImagePath" class="no-img">{{ getInitials(p.patientName) }}</div>
+                            <div *ngIf="!p.profileImagePath" class="no-img">{{ getInitials(p.patientName || 'Patient') }}</div>
                         </div>
                         <div class="card-info">
-                            <h4 class="patient-name">{{ p.patientName }}</h4>
-                            <span class="patient-id">ID: {{ p.patientID.substring(0, 8) }}</span>
+                            <h4 class="patient-name">{{ p.patientName || 'Patient ' + p.patientID }}</h4>
+                            <span class="patient-id">{{ p.appointmentDate | date:'MMM dd' }} - {{ formatTime(p.appointmentTimeSlot) }}</span>
                         </div>
-                        <span class="time-slot">{{ formatTime(p.appointmentTimeSlot) }}</span>
                     </div>
-                    <div class="card-actions" *ngIf="p.queueStatus === 0">
-                        <button mat-flat-button class="attend-btn" (click)="attendPatient(p); $event.stopPropagation()">
-                            <mat-icon>check</mat-icon> Attend
+                    <div class="card-actions">
+                        <button mat-flat-button class="accept-btn" (click)="acceptPatient(p); $event.stopPropagation()">
+                            <mat-icon>check</mat-icon> Accept
                         </button>
-                        <button mat-icon-button class="dismiss-btn" (click)="dismissPatient(p); $event.stopPropagation()">
-                            <mat-icon>close</mat-icon>
+                        <button mat-flat-button class="reject-btn" (click)="rejectPatient(p); $event.stopPropagation()">
+                            <mat-icon>close</mat-icon> Reject
                         </button>
                     </div>
                 </div>
@@ -69,15 +73,15 @@
                         </div>
                         <div class="info-item">
                             <span class="label">Phone:</span>
-                            <span class="value">+1 234-567-8900</span>
+                            <span class="value">{{ selectedPatient.phoneNumber || 'Not provided' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="label">Last Visit:</span>
-                            <span class="value">Jan 15, 2025</span>
+                            <span class="value">{{ lastVisitDate }}</span>
                         </div>
                         <div class="info-item">
                             <span class="label">Allergies:</span>
-                            <span class="value text-danger">{{ selectedPatient.allergies || 'Penicillin' }}</span>
+                            <span class="value text-danger">{{ selectedPatient.allergies || 'None recorded' }}</span>
                         </div>
                     </div>
                 </div>
@@ -91,22 +95,40 @@
                     <div class="history-card">
                         <div class="history-item">
                             <div class="history-label">Previous Conditions:</div>
-                            <div class="history-text">Hypertension, Diabetes Type 2</div>
+                            <div class="history-text">{{ previousConditions }}</div>
                         </div>
                         <div class="history-item">
                             <div class="history-label">Current Medications:</div>
-                            <div class="history-text">Metformin 500mg, Lisinopril 10mg</div>
+                            <div class="history-text">{{ currentMedications }}</div>
                         </div>
 
                         <div class="action-buttons">
-                            <button mat-flat-button class="secondary-action" (click)="writePrescription()">
-                                <mat-icon>description</mat-icon> Write Prescription
+                            <button mat-flat-button class="secondary-action" (click)="addDiagnosis()">
+                                <mat-icon>medical_services</mat-icon> Add Diagnosis
+                            </button>
+                            <button mat-flat-button class="secondary-action" (click)="writePrescription()" 
+                                [class.completed]="selectedPatient.hasPrescription">
+                                <mat-icon>{{ selectedPatient.hasPrescription ? 'check_circle' : 'description' }}</mat-icon> 
+                                {{ selectedPatient.hasPrescription ? 'Prescription Written' : 'Write Prescription' }}
                             </button>
                             <button mat-flat-button class="secondary-action" (click)="assignLabTest()">
-                                <mat-icon>science</mat-icon> Assign Lab Test
+                                <mat-icon>science</mat-icon> Order Lab Tests
+                            </button>
+                            <button mat-flat-button class="secondary-action" (click)="addObservation()">
+                                <mat-icon>visibility</mat-icon> Add Observations
                             </button>
                             <button mat-flat-button class="secondary-action" (click)="updateEHR()">
                                 <mat-icon>folder_open</mat-icon> Update EHR
+                            </button>
+                        </div>
+
+                        <!-- Consultation Actions -->
+                        <div class="consultation-actions">
+                            <button mat-raised-button color="accent" (click)="scheduleFollowUp()" class="action-btn">
+                                <mat-icon>schedule</mat-icon> Schedule Follow-up
+                            </button>
+                            <button mat-raised-button color="primary" (click)="completeConsultation()" class="action-btn">
+                                <mat-icon>check_circle</mat-icon> Complete Consultation
                             </button>
                         </div>
                     </div>
@@ -145,8 +167,9 @@
         <ng-template #noSelection>
             <div class="empty-state">
                 <mat-icon>person_search</mat-icon>
-                <h2>Select a patient from the queue</h2>
-                <p>You have {{ regularPatients.length + followUpPatients.length }} patients waiting</p>
+                <h2>No patients in queue</h2>
+                <p>You have {{ getTotalPatients() }} patients waiting</p>
+
             </div>
         </ng-template>
     </div>
@@ -169,20 +192,19 @@
                     <div class="card-content">
                         <div class="avatar-mini">
                             <img *ngIf="p.profileImagePath" [src]="p.profileImagePath" alt="">
-                            <div *ngIf="!p.profileImagePath" class="no-img">{{ getInitials(p.patientName) }}</div>
+                            <div *ngIf="!p.profileImagePath" class="no-img">{{ getInitials(p.patientName || 'Patient') }}</div>
                         </div>
                         <div class="card-info">
-                            <h4 class="patient-name">{{ p.patientName }}</h4>
-                            <span class="patient-id">Follow-up</span>
+                            <h4 class="patient-name">{{ p.patientName || 'Patient ' + p.patientID }}</h4>
+                            <span class="patient-id">{{ p.appointmentDate | date:'MMM dd' }} - {{ formatTime(p.appointmentTimeSlot) }}</span>
                         </div>
-                        <span class="time-slot">{{ formatTime(p.appointmentTimeSlot) }}</span>
                     </div>
-                    <div class="card-actions" *ngIf="p.queueStatus === 0">
-                        <button mat-flat-button class="attend-btn" (click)="attendPatient(p); $event.stopPropagation()">
-                            <mat-icon>check</mat-icon> Attend
+                    <div class="card-actions">
+                        <button mat-flat-button class="accept-btn" (click)="acceptPatient(p); $event.stopPropagation()">
+                            <mat-icon>check</mat-icon> Accept
                         </button>
-                        <button mat-icon-button class="dismiss-btn" (click)="dismissPatient(p); $event.stopPropagation()">
-                            <mat-icon>close</mat-icon>
+                        <button mat-flat-button class="reject-btn" (click)="rejectPatient(p); $event.stopPropagation()">
+                            <mat-icon>close</mat-icon> Reject
                         </button>
                     </div>
                 </div>

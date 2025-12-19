@@ -3,6 +3,7 @@ using CMS.Application.EMR.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace CMS.Api.Controllers.EMR
 {
@@ -183,12 +184,29 @@ namespace CMS.Api.Controllers.EMR
         {
             try
             {
+                Console.WriteLine($"[PRESCRIPTION DEBUG] EncounterID: {dto.EncounterID}");
+                Console.WriteLine($"[PRESCRIPTION DEBUG] Notes: '{dto.Notes}'");
+                Console.WriteLine($"[PRESCRIPTION DEBUG] Medicines count: {dto.Medicines?.Count ?? 0}");
+                
+                if (dto.Medicines != null && dto.Medicines.Count > 0)
+                {
+                    for (int i = 0; i < dto.Medicines.Count; i++)
+                    {
+                        var med = dto.Medicines[i];
+                        Console.WriteLine($"[PRESCRIPTION DEBUG] Medicine {i}: Name='{med.MedicineName}', Dosage='{med.Dosage}', Frequency='{med.Frequency}', Duration='{med.Duration}'");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("[PRESCRIPTION DEBUG] No medicines received!");
+                }
+                
                 var prescription = await _encounterService.AddPrescriptionAsync(dto);
                 return Ok(prescription);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding prescription");
+                _logger.LogError(ex, "Error adding prescription: {Message}", ex.Message);
                 return BadRequest(new { message = ex.Message });
             }
         }

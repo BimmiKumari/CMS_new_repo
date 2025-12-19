@@ -23,6 +23,7 @@ namespace CMS.Application.EMR.DTOs
         public bool IsFollowUp { get; set; }
         public Guid? PreviousEncounterID { get; set; }
         public string? ProfileImagePath { get; set; }
+        public string? PhoneNumber { get; set; }
     }
 
     public class DoctorQueueResponseDto
