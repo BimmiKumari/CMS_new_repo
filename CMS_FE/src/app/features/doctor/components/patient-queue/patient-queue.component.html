@@ -1,6 +1,6 @@
 <div class="dashboard-container">
 
-    <!-- Left Sidebar: Regular Patients Queue -->
+    <!-- Left: Regular Patients Queue -->
     <div class="queue-sidebar">
         <div class="queue-section">
             <div class="section-header">
@@ -44,189 +44,20 @@
         </div>
     </div>
 
-    <!-- Middle: Main EMR Panel -->
-    <div class="main-emr-panel">
-        <div *ngIf="selectedPatient; else noSelection" class="panel-content">
-
-            <!-- Patient Summary Header -->
-            <div class="patient-summary">
-                <div class="avatar-large">
-                    <img *ngIf="selectedPatient.profileImagePath" [src]="selectedPatient.profileImagePath" alt="">
-                    <div *ngIf="!selectedPatient.profileImagePath" class="no-img">{{
-                        getInitials(selectedPatient.patientName) }}</div>
-                </div>
-                <div class="summary-details">
-                    <div class="summary-header">
-                        <h2 class="summary-name">{{ selectedPatient.patientName }}</h2>
-                        <span class="patient-type-tag">{{ selectedPatient.isFollowUp ? 'Follow-up' : 'Regular Patient'
-                            }}</span>
-                    </div>
-                    <div class="summary-info-grid">
-                        <div class="info-item">
-                            <span class="label">Age:</span>
-                            <span class="value">{{ selectedPatient.age }} years</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Gender:</span>
-                            <span class="value">{{ selectedPatient.sex === 'M' ? 'Male' : 'Female' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Blood Type:</span>
-                            <span class="value">{{ selectedPatient.bloodGroup || 'O+' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Phone:</span>
-                            <span class="value">{{ selectedPatient.phoneNumber || 'Not provided' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Last Visit:</span>
-                            <span class="value">{{ lastVisitDate }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Allergies:</span>
-                            <span class="value text-danger">{{ selectedPatient.allergies || 'None recorded' }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Medical History & Today's Visit -->
-            <div class="emr-body">
-                <!-- Left: Medical History -->
-                <div class="history-side">
-                    <div class="section-header-row">
-                        <h3 class="section-title-large">Medical History</h3>
-                        <button mat-stroked-button color="primary" class="view-emr-btn"
-                            *ngIf="pastEncounters.length > 0" (click)="viewEncounterDetails(pastEncounters[0])">
-                            <mat-icon>visibility</mat-icon> View Latest EMR
-                        </button>
-                    </div>
-
-                    <div class="history-card">
-                        <!-- Past Encounters Table -->
-                        <div class="past-encounters-section" *ngIf="pastEncounters.length > 0; else noHistory">
-                            <table class="history-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Doctor</th>
-                                        <th>Diagnosis</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr *ngFor="let enc of pastEncounters">
-                                        <td>{{ enc.encounterDate | date:'MMM dd, yyyy' }}</td>
-                                        <td>{{ enc.doctorName }}</td>
-                                        <td>
-                                            <div *ngIf="enc.diagnoses?.length; else noDiag">
-                                                <div *ngFor="let d of enc.diagnoses" class="diagnosis-item">
-                                                    <span class="diag-code" *ngIf="d.diagnosisCode">[{{ d.diagnosisCode
-                                                        }}]</span>
-                                                    <span class="diag-name">{{ d.diagnosisName }}</span>
-                                                    <span class="diag-desc" *ngIf="d.description"> - {{ d.description
-                                                        }}</span>
-                                                </div>
-                                            </div>
-                                            <ng-template #noDiag>N/A</ng-template>
-                                        </td>
-                                        <td>
-                                            <button mat-icon-button color="primary" (click)="viewEncounterDetails(enc)"
-                                                title="View Details">
-                                                <mat-icon>info</mat-icon>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <ng-template #noHistory>
-                            <div class="no-history-msg">No previous encounters found for this user.</div>
-                        </ng-template>
-
-                        <mat-divider class="history-divider"></mat-divider>
-
-                        <div class="action-buttons">
-                            <button mat-flat-button class="secondary-action" (click)="addDiagnosis()">
-                                <mat-icon>medical_services</mat-icon> Add Diagnosis
-                            </button>
-                            <button mat-flat-button class="secondary-action" (click)="writePrescription()"
-                                [class.completed]="selectedPatient.hasPrescription">
-                                <mat-icon>{{ selectedPatient.hasPrescription ? 'check_circle' : 'description'
-                                    }}</mat-icon>
-                                {{ selectedPatient.hasPrescription ? 'Prescription Written' : 'Write Prescription' }}
-                            </button>
-                            <button mat-flat-button class="secondary-action" (click)="assignLabTest()">
-                                <mat-icon>science</mat-icon> Order Lab Tests
-                            </button>
-                            <button mat-flat-button class="secondary-action" (click)="addObservation()">
-                                <mat-icon>visibility</mat-icon> Add Observations
-                            </button>
-                        </div>
-
-                        <!-- Consultation Actions -->
-                        <div class="consultation-actions">
-                            <button mat-raised-button color="accent" (click)="scheduleFollowUp()" class="action-btn">
-                                <mat-icon>schedule</mat-icon> Schedule Follow-up
-                            </button>
-                            <button mat-raised-button color="primary" (click)="completeConsultation()"
-                                class="action-btn">
-                                <mat-icon>check_circle</mat-icon> Complete Consultation
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Today's Visit -->
-                <div class="visit-side">
-                    <h3 class="section-title-large">Today's Visit</h3>
-                    <div class="visit-form">
-                        <div class="form-group">
-                            <label class="history-label">Chief Complaint</label>
-                            <mat-form-field appearance="outline" class="full-width">
-                                <textarea matInput rows="3" [(ngModel)]="chiefComplaint"
-                                    placeholder="Enter patient's main concern..."></textarea>
-                            </mat-form-field>
-                        </div>
-                        <div class="form-group">
-                            <label class="history-label">Diagnosis</label>
-                            <mat-form-field appearance="outline" class="full-width">
-                                <textarea matInput rows="3" [(ngModel)]="diagnosis"
-                                    placeholder="Enter diagnosis..."></textarea>
-                            </mat-form-field>
-                        </div>
-                        <div class="form-group">
-                            <label class="history-label">Treatment Plan</label>
-                            <mat-form-field appearance="outline" class="full-width">
-                                <textarea matInput rows="3" [(ngModel)]="treatmentPlan"
-                                    placeholder="Enter treatment plan..."></textarea>
-                            </mat-form-field>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-        <ng-template #noSelection>
-            <div class="empty-state">
-                <mat-icon>person_search</mat-icon>
-                <h2>No patients in queue</h2>
-                <p>You have {{ getTotalPatients() }} patients waiting</p>
-
-            </div>
-        </ng-template>
-    </div>
-
-    <!-- Right Sidebar: Follow-up & Emergency -->
+    <!-- Right: Follow-up Patients Queue -->
     <div class="followup-sidebar">
-        <!-- Follow-up Patients -->
         <div class="queue-section">
             <div class="section-header">
                 <div class="section-title">
                     <span class="dot followup"></span>
                     Follow-up Patients
                 </div>
-                <span class="patient-count">{{ followUpPatients.length }} patients</span>
+                <div class="header-actions">
+                    <span class="patient-count">{{ followUpPatients.length }} patients</span>
+                    <button mat-icon-button (click)="refreshQueue()" title="Refresh Queue">
+                        <mat-icon>refresh</mat-icon>
+                    </button>
+                </div>
             </div>
             <div class="patient-list">
                 <div *ngFor="let p of followUpPatients" class="patient-card"
@@ -254,8 +85,6 @@
                 </div>
             </div>
         </div>
-
-
     </div>
 
 </div>

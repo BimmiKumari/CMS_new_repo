@@ -11,6 +11,7 @@ import { RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DoctorProfileComponent } from './components/doctor-profile/doctor-profile.component';
 import { PatientQueueComponent } from './components/patient-queue/patient-queue.component';
+import { PatientConsultationComponent } from './components/patient-consultation/patient-consultation.component';
 
 @Component({
   selector: 'app-doctor-dashboard',
@@ -26,7 +27,8 @@ import { PatientQueueComponent } from './components/patient-queue/patient-queue.
     MatDividerModule,
     RouterOutlet,
     DoctorProfileComponent,
-    PatientQueueComponent
+    PatientQueueComponent,
+    PatientConsultationComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -70,7 +72,12 @@ import { PatientQueueComponent } from './components/patient-queue/patient-queue.
             
             <!-- Patient Queue -->
             <div *ngSwitchCase="'queue'">
-               <app-patient-queue></app-patient-queue>
+               <app-patient-queue (patientAccepted)="onPatientSelected($event)"></app-patient-queue>
+            </div>
+
+            <!-- Patient Consultation -->
+            <div *ngSwitchCase="'consultation'">
+              <app-patient-consultation [selectedPatient]="selectedPatient"></app-patient-consultation>
             </div>
 
             <!-- Profile Setup -->
@@ -120,22 +127,25 @@ import { PatientQueueComponent } from './components/patient-queue/patient-queue.
   styles: [`
     .sidenav-container {
       height: 100vh;
-      background-color: #f4f7f9;
+      background-color: #f8fafc;
     }
     .sidenav {
-      width: 260px;
+      width: 280px;
       border-right: none;
       background: white;
-      box-shadow: 2px 0 10px rgba(0,0,0,0.03);
+      box-shadow: 4px 0 20px rgba(0,0,0,0.08);
     }
     .sidebar-header {
-      padding: 40px 24px;
+      padding: 32px 24px;
       display: flex;
       align-items: center;
       gap: 12px;
-      font-size: 20px;
-      font-weight: 700;
-      color: #1e293b;
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 24px;
+      letter-spacing: -0.025em;
     }
     .sidebar-footer {
       position: absolute;
@@ -152,9 +162,11 @@ import { PatientQueueComponent } from './components/patient-queue/patient-queue.
       gap: 8px;
     }
     .main-content {
-      padding: 48px;
-      max-width: 1100px;
-      margin: 0 auto;
+      padding: 0;
+      max-width: none;
+      margin: 0;
+      height: 100vh;
+      overflow-y: auto;
     }
     .page-title {
       font-size: 32px;
@@ -210,13 +222,18 @@ import { PatientQueueComponent } from './components/patient-queue/patient-queue.
 export class DoctorDashboardComponent {
   activeSection = 'queue';
   currentUser: any;
+  selectedPatient: any = null;
 
   constructor(
     private authService: AuthService,
     private router: Router
   ) {
     this.currentUser = this.authService.getCurrentUser();
-    // Default to profile if setup might be needed (logic can be expanded)
+  }
+
+  onPatientSelected(patient: any): void {
+    this.selectedPatient = patient;
+    this.activeSection = 'consultation';
   }
 
   setActiveSection(section: string): void {

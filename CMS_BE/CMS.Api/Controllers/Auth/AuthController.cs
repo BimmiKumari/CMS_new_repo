@@ -181,13 +181,13 @@ namespace CMS.Api.Controllers.Auth
         {
             try
             {
-                // Currently support CSV template only
+                
                 if (!string.Equals(format, "csv", System.StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(ApiResponse<object>.ErrorResponse("Only 'csv' format is supported for template."));
                 }
 
-                var csv = "email\r\n"; // header only; users should add one email per line
+                var csv = "email\r\n"; 
                 var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
                 return File(bytes, "text/csv", "bulk-invite-template.csv");
             }
@@ -306,7 +306,7 @@ namespace CMS.Api.Controllers.Auth
         {
             try
             {
-                // Get current user ID from claims
+                
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
                 if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var adminUserId))
                 {

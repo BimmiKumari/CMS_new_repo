@@ -11,7 +11,7 @@ namespace CMS.Data
             DotNetEnv.Env.Load();
 
             var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-                ?? "Server=localhost;Database=CMS_DB_DEv_EMR;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+                ?? "Server=localhost;Database=CMS_Demo_Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
 
             var optionsBuilder = new DbContextOptionsBuilder<CmsDbContext>();
             optionsBuilder.UseSqlServer(connectionString);

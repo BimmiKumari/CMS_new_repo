@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -50,6 +50,8 @@ import { interval, Subscription } from 'rxjs';
     styleUrls: ['./patient-queue.component.css']
 })
 export class PatientQueueComponent implements OnInit, OnDestroy {
+    @Output() patientAccepted = new EventEmitter<QueuePatient>();
+    
     regularPatients: QueuePatient[] = [];
     followUpPatients: QueuePatient[] = [];
     selectedPatient: QueuePatient | null = null;
@@ -227,8 +229,8 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         }).subscribe({
             next: (res: any) => {
                 this.snackBar.open(`${patient.patientName} accepted for consultation`, 'Close', { duration: 3000 });
-                this.loadQueue();
-                this.selectPatient(patient);
+                patient.queueStatus = QueueStatusType.InProgress;
+                this.patientAccepted.emit(patient);
             },
             error: (err: any) => this.snackBar.open('Error accepting patient', 'Close', { duration: 3000 })
         });
