@@ -4,6 +4,8 @@ using CMS.Application.Appointments.Interfaces;
 using CMS.Data;
 using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Appointments.Enums;
+using CMS.Domain.Clinic.Entities;
+using CMS.Domain.Clinic.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMS.Application.Appointments.Services
@@ -38,8 +40,76 @@ namespace CMS.Application.Appointments.Services
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
+            // Auto-add follow-up appointments to queue
+            if (request.AppointmentType == AppointmentType.FollowUp)
+            {
+                try
+                {
+                    Console.WriteLine($"[FOLLOWUP] Creating queue entry for appointment {appointment.AppointmentID}");
+                    
+                    var patient = await _context.Patients.FirstOrDefaultAsync(p => p.patient_id == request.PatientID);
+                    if (patient != null)
+                    {
+                        var queuePosition = await GetNextQueuePositionAsync(request.DoctorID, request.AppointmentDate, true);
+                        
+                        var queue = new PatientQueue
+                        {
+                            QueueID = Guid.NewGuid(),
+                            AppointmentID = appointment.AppointmentID,
+                            PatientID = request.PatientID,
+                            DoctorID = request.DoctorID,
+                            QueueZone = AppointmentType.FollowUp,
+                            QueuePosition = queuePosition,
+                            QueueStatus = QueueStatusType.Waiting,
+                            AppointmentTimeSlot = request.StartTime,
+                            AppointmentDate = request.AppointmentDate,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+                        
+                        Console.WriteLine($"[FOLLOWUP] Queue entry: QueueID={queue.QueueID}, PatientID={queue.PatientID}, Date={queue.AppointmentDate:yyyy-MM-dd}");
+                        
+                        _context.PatientQueues.Add(queue);
+                        await _context.SaveChangesAsync();
+                        
+                        Console.WriteLine($"[FOLLOWUP] Queue entry created successfully");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[FOLLOWUP ERROR] Patient not found for ID: {request.PatientID}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[FOLLOWUP ERROR] Failed to create queue entry: {ex.Message}");
+                    Console.WriteLine($"[FOLLOWUP ERROR] Stack trace: {ex.StackTrace}");
+                }
+            }
+
             return await MapToDto(appointment);
         }
+        
+        private async Task<int> GetNextQueuePositionAsync(Guid doctorId, DateTime date, bool isFollowUp)
+        {
+            var startOfDay = date.Date;
+            var endOfDay = startOfDay.AddDays(1);
+
+            var queueZone = isFollowUp 
+                ? AppointmentType.FollowUp 
+                : AppointmentType.Consultation;
+
+            var maxPosition = await _context.PatientQueues
+                .Where(q => q.DoctorID == doctorId 
+                    && q.AppointmentDate >= startOfDay 
+                    && q.AppointmentDate < endOfDay
+                    && q.QueueZone == queueZone
+                    && !q.IsDeleted)
+                .MaxAsync(q => (int?)q.QueuePosition) ?? 0;
+
+            return maxPosition + 1;
+        }
+        
+
 
         public async Task<AppointmentDto?> GetAppointmentByIdAsync(Guid id)
         {

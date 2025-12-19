@@ -1,4 +1,5 @@
 using CMS.Domain.EMR.Enums;
+using System.Text.Json.Serialization;
 
 namespace CMS.Application.EMR.DTOs
 {
@@ -75,13 +76,19 @@ namespace CMS.Application.EMR.DTOs
     public class CreatePrescriptionDto
     {
         public Guid EncounterID { get; set; }
+        public Guid PatientID { get; set; }
         public Guid DoctorID { get; set; }
-        public string MedicationName { get; set; } = string.Empty;
-        public int Dosage { get; set; }
-        public string Unit { get; set; } = string.Empty;
-        public MedicationFrequency Frequency { get; set; }
+        public string? Notes { get; set; }
+        public List<MedicineItemDto> Medicines { get; set; } = new();
+    }
+
+    public class MedicineItemDto
+    {
+        public string MedicineName { get; set; } = string.Empty;
+        public string Dosage { get; set; } = string.Empty;
+        public string Frequency { get; set; } = string.Empty;
         public string Duration { get; set; } = string.Empty;
-        public string Notes { get; set; } = string.Empty;
+        public string? Instructions { get; set; }
     }
 
     public class LabTestDto

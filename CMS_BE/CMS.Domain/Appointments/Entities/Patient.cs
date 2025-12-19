@@ -42,6 +42,7 @@ namespace CMS.Domain.Appointments.Entities
         
         // Navigation property
         public EMRRecord? EMRRecord { get; set; }
+        
     }
 }
 
