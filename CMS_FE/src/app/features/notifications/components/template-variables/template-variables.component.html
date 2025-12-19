@@ -1,0 +1,11 @@
+<form [formGroup]="variablesForm">
+  <div class="variable-field" *ngFor="let variable of variables">
+    <!-- Use exact variable name as label to match provided design -->
+    <label [for]="variable">Enter {{ variable }}</label>
+    <input [id]="variable"
+           [type]="getInputType(variable)"
+           class="form-control variable-input"
+           [formControlName]="variable"
+           (input)="onVariableChange()">
+  </div>
+</form>

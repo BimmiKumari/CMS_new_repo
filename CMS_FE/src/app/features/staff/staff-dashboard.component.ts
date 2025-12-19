@@ -8,6 +8,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatCardModule } from '@angular/material/card';
 import { RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { SendNotificationComponent } from '../notifications/components/send-notification/send-notification.component';
 
 @Component({
   selector: 'app-staff-dashboard',
@@ -20,7 +21,8 @@ import { AuthService } from '../../core/services/auth.service';
     MatIconModule,
     MatListModule,
     MatCardModule,
-    RouterOutlet
+    RouterOutlet,
+    SendNotificationComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -34,6 +36,10 @@ import { AuthService } from '../../core/services/auth.service';
           <a mat-list-item (click)="setActiveSection('patients')">
             <mat-icon>people</mat-icon>
             <span>Patient Management</span>
+          </a>
+          <a mat-list-item (click)="setActiveSection('reminders')">
+            <mat-icon>notifications</mat-icon>
+            <span>Reminder Management</span>
           </a>
           <a mat-list-item (click)="setActiveSection('billing')">
             <mat-icon>receipt</mat-icon>
@@ -78,6 +84,10 @@ import { AuthService } from '../../core/services/auth.service';
                   <p>Register new patients and update patient information.</p>
                 </mat-card-content>
               </mat-card>
+            </div>
+
+            <div *ngSwitchCase="'reminders'">
+              <app-send-notification></app-send-notification>
             </div>
 
             <div *ngSwitchCase="'billing'">

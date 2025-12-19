@@ -47,9 +47,16 @@ namespace CMS.Infrastructure.Notifications.NotificationServices
                 var processedBody = await _templateService.ProcessTemplateAsync(template, variables ?? new Dictionary<string, object>());
                 var processedSubject = ProcessSubject(template.Subject, variables ?? new Dictionary<string, object>());
 
+                // Normalize channel type: tolerate legacy/invalid 0 value by treating it as Email
+                var channel = template.ChannelType;
+                if ((int)channel == 0)
+                {
+                    channel = NotificationChannelType.Email;
+                }
+
                 bool success = false;
 
-                switch (template.ChannelType)
+                switch (channel)
                 {
                     case NotificationChannelType.Email:
                         success = await _emailService.SendAsync(recipient, processedSubject, processedBody, recipientName);

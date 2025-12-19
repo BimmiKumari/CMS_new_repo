@@ -1,0 +1,45 @@
+.variable-field {
+  margin-bottom: 16px;
+}
+
+.variable-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #212529;
+  background-color: #f2f6f9; /* light grey background to match design */
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+.form-control:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+}
+
+.form-control::placeholder {
+  color: #6c757d;
+  opacity: 0.65;
+}
+
+.variable-input[type="date"],
+.variable-input[type="time"] {
+  /* keep date/time inputs visually consistent */
+  padding: 6px 10px;
+}

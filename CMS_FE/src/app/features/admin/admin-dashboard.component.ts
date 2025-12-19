@@ -11,6 +11,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { InviteUserComponent } from './invite-user.component';
 import { BulkInviteComponent } from './bulk-invite.component';
 import { AcceptInvitationComponent } from './accept-invitation.component';
+import { TemplateCreateComponent } from '../notifications/components/template-create/template-create.component';
+import { TemplateListComponent } from '../notifications/components/template-list/template-list.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -26,7 +28,9 @@ import { AcceptInvitationComponent } from './accept-invitation.component';
     RouterOutlet,
     InviteUserComponent,
     BulkInviteComponent,
-    AcceptInvitationComponent
+    AcceptInvitationComponent,
+    TemplateCreateComponent,
+    TemplateListComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -36,6 +40,14 @@ import { AcceptInvitationComponent } from './accept-invitation.component';
           <a mat-list-item (click)="setActiveSection('invite-staff')">
             <mat-icon>person_add</mat-icon>
             <span>Invite Staff</span>
+          </a>
+          <a mat-list-item (click)="setActiveSection('create-templates')">
+            <mat-icon>add_circle</mat-icon>
+            <span>Create Templates</span>
+          </a>
+          <a mat-list-item (click)="setActiveSection('manage-templates')">
+            <mat-icon>list</mat-icon>
+            <span>Manage Templates</span>
           </a>
         </mat-nav-list>
       </mat-sidenav>
@@ -65,7 +77,29 @@ import { AcceptInvitationComponent } from './accept-invitation.component';
               </mat-card>
             </div>
 
-            
+            <div *ngSwitchCase="'create-templates'">
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title>Create Notification Templates</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                  <p>Create new email and SMS templates for notifications.</p>
+                  <app-template-create></app-template-create>
+                </mat-card-content>
+              </mat-card>
+            </div>
+
+            <div *ngSwitchCase="'manage-templates'">
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title>Manage Templates</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                  <p>View, edit, and delete existing notification templates.</p>
+                  <app-template-list></app-template-list>
+                </mat-card-content>
+              </mat-card>
+            </div>
 
             <div *ngSwitchDefault>
               <mat-card>

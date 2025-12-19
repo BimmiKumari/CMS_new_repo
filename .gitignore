@@ -1,11 +1,22 @@
 # Root level ignores
 .env
 *.env
-
+CMS_BE/CMS.Api/build_output.txt
+CMS_BE/build_errors.txt
 # IDEs
 .vscode/
 .idea/
+.agent/
+.gemini/
+# Build logs
+CMS_BE/CMS.Api/build_log_*.txt
 
+# Local notes / docs
+NOTIFICATION_INTEGRATION_SUMMARY.md
+STAFF_REMINDER_UPDATE.md
+# Backend build outputs / errors
+CMS_BE/CMS.Api/build_output.txt
+CMS_BE/build_errors.txt
 # System files
 .DS_Store
 Thumbs.db

@@ -1,0 +1,67 @@
+<div class="card p-3">
+  <h5>Templates</h5>
+  <div *ngIf="loading">Loading...</div>
+  <table class="table table-sm mt-2" *ngIf="!loading && templates.length">
+    <thead><tr><th>Name</th><th>Channel</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      <tr *ngFor="let t of templates">
+        <ng-container *ngIf="editTemplate && editTemplate.id === t.id; else viewRow">
+          <td colspan="4">
+            <form (ngSubmit)="saveEdit()" class="p-3 rounded border bg-light">
+              <div class="row mb-2">
+                <div class="col-md-4 mb-2">
+                  <label class="form-label mb-1">Name</label>
+                  <input [(ngModel)]="editTemplate.name" name="name" class="form-control" placeholder="Template Name" required />
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label mb-1">Channel</label>
+                  <input [(ngModel)]="editTemplate.channelType" name="channelType" class="form-control" placeholder="Channel" required />
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label mb-1">Active</label>
+                  <select [(ngModel)]="editTemplate.isActive" name="isActive" class="form-select">
+                    <option [ngValue]="true">Yes</option>
+                    <option [ngValue]="false">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row mb-2">
+                <div class="col-md-4 mb-2">
+                  <label class="form-label mb-1">Subject</label>
+                  <input [(ngModel)]="editTemplate.subject" name="subject" class="form-control" placeholder="Subject" />
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label mb-1">Variables <span class="text-muted small">(comma separated)</span></label>
+                  <input [(ngModel)]="editTemplate.variables" name="variables" class="form-control" placeholder="e.g. name, date, doctor" />
+                  <div class="form-text">Edit the variable names used in the template body.</div>
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label mb-1">Description</label>
+                  <input [(ngModel)]="editTemplate.description" name="description" class="form-control" placeholder="Description" />
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label mb-1">Body</label>
+                <textarea [(ngModel)]="editTemplate.body" name="body" class="form-control" rows="4" placeholder="Template Body"></textarea>
+              </div>
+              <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-success px-4" type="submit" [disabled]="savingEdit">Save</button>
+                <button class="btn btn-secondary px-4" type="button" (click)="cancelEdit()">Cancel</button>
+              </div>
+            </form>
+          </td>
+        </ng-container>
+        <ng-template #viewRow>
+          <td>{{t.name}}</td>
+          <td>{{t.channelType}}</td>
+          <td>{{t.isActive ? 'Yes' : 'No'}}</td>
+          <td>
+            <button class="btn btn-sm btn-primary me-2" (click)="edit(t)">Edit</button>
+            <button class="btn btn-sm btn-danger" (click)="delete(t.id)">Delete</button>
+          </td>
+        </ng-template>
+      </tr>
+    </tbody>
+  </table>
+  <div *ngIf="!loading && !templates.length">No templates found</div>
+</div>

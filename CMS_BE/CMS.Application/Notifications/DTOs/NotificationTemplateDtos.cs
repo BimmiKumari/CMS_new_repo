@@ -83,11 +83,57 @@ namespace CMS.Application.Notifications.DTOs
         [Required(ErrorMessage = "Template ID is required")]
         public Guid TemplateId { get; set; }
 
-        [Required(ErrorMessage = "Recipient email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
-        public string RecipientEmail { get; set; } = string.Empty;
+        public string? RecipientEmail { get; set; }
 
         public string? RecipientPhone { get; set; }
+
+        [Required(ErrorMessage = "Recipient name is required")]
+        public string RecipientName { get; set; } = string.Empty;
+
+        public Dictionary<string, object>? Variables { get; set; }
+    }
+
+    public class SendNotificationByTypeDto
+    {
+        [Required(ErrorMessage = "Notification type is required")]
+        public NotificationType Type { get; set; }
+
+        [Required(ErrorMessage = "Channel type is required")]
+        public NotificationChannelType ChannelType { get; set; }
+
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string? RecipientEmail { get; set; }
+
+        public string? RecipientPhone { get; set; }
+
+        [Required(ErrorMessage = "Recipient name is required")]
+        public string RecipientName { get; set; } = string.Empty;
+
+        public Dictionary<string, object>? Variables { get; set; }
+    }
+
+    public class SendSmsNotificationDto
+    {
+        [Required(ErrorMessage = "Template ID is required")]
+        public Guid TemplateId { get; set; }
+
+        [Required(ErrorMessage = "Recipient phone is required")]
+        public string RecipientPhone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Recipient name is required")]
+        public string RecipientName { get; set; } = string.Empty;
+
+        public Dictionary<string, object>? Variables { get; set; }
+    }
+
+    public class SendSmsByTypeDto
+    {
+        [Required(ErrorMessage = "Notification type is required")]
+        public NotificationType Type { get; set; }
+
+        [Required(ErrorMessage = "Recipient phone is required")]
+        public string RecipientPhone { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Recipient name is required")]
         public string RecipientName { get; set; } = string.Empty;

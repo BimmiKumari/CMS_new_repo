@@ -10,6 +10,7 @@ namespace CMS.Api.Controllers.Notifications
     [ApiController]
     [Route("api/[controller]")]
    
+    [Authorize]
     public class NotificationTemplateController : ControllerBase
     {
         private readonly INotificationTemplateService _templateService;
@@ -109,8 +110,8 @@ namespace CMS.Api.Controllers.Notifications
         /// <summary>
         /// Create a new notification template
         /// </summary>
-        [AllowAnonymous]
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<Guid>> CreateTemplate([FromBody] CreateNotificationTemplateDto dto)
         {
             try
@@ -142,6 +143,7 @@ namespace CMS.Api.Controllers.Notifications
         /// Update an existing notification template
         /// </summary>
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateTemplate(Guid id, [FromBody] UpdateNotificationTemplateDto dto)
         {
             try
@@ -183,6 +185,7 @@ namespace CMS.Api.Controllers.Notifications
         /// Delete a notification template
         /// </summary>
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteTemplate(Guid id)
         {
             try
@@ -207,6 +210,7 @@ namespace CMS.Api.Controllers.Notifications
         /// Send a test notification using a template
         /// </summary>
         [HttpPost("send-test")]
+        [Authorize(Roles = "Staff")]
         public async Task<ActionResult> SendTestNotification([FromBody] SendNotificationDto dto)
         {
             try
@@ -274,6 +278,7 @@ namespace CMS.Api.Controllers.Notifications
         /// Send notification by type and channel
         /// </summary>
         [HttpPost("send-by-type")]
+        [Authorize(Roles = "Staff")]
         public async Task<ActionResult> SendNotificationByType([FromBody] SendNotificationByTypeDto dto)
         {
             try
@@ -283,10 +288,40 @@ namespace CMS.Api.Controllers.Notifications
                     return BadRequest(ModelState);
                 }
 
-                var recipient = dto.ChannelType == NotificationChannelType.Email ? dto.RecipientEmail : dto.RecipientPhone;
-                if (string.IsNullOrEmpty(recipient))
+                // Some frontends use 0 for Email (default enum value). Normalize here so we
+                // tolerate that and infer channel from provided recipient fields.
+                if ((int)dto.ChannelType == 0)
                 {
-                    return BadRequest("Recipient information is required for the specified channel type");
+                    if (!string.IsNullOrWhiteSpace(dto.RecipientEmail))
+                    {
+                        dto.ChannelType = NotificationChannelType.Email;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(dto.RecipientPhone))
+                    {
+                        dto.ChannelType = NotificationChannelType.SMS;
+                    }
+                    else
+                    {
+                        dto.ChannelType = NotificationChannelType.Email; // default
+                    }
+                }
+
+                string recipient;
+                if (dto.ChannelType == NotificationChannelType.Email)
+                {
+                    if (string.IsNullOrWhiteSpace(dto.RecipientEmail))
+                    {
+                        return BadRequest("Recipient email is required for email notifications");
+                    }
+                    recipient = dto.RecipientEmail;
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(dto.RecipientPhone))
+                    {
+                        return BadRequest("Recipient phone is required for SMS notifications");
+                    }
+                    recipient = dto.RecipientPhone;
                 }
 
                 var success = await _notificationService.SendNotificationByTypeAsync(
@@ -319,6 +354,7 @@ namespace CMS.Api.Controllers.Notifications
         /// Send SMS notification using template ID
         /// </summary>
         [HttpPost("send-sms")]
+        [Authorize(Roles = "Staff")]
         public async Task<ActionResult> SendSmsNotification([FromBody] SendSmsNotificationDto dto)
         {
             try
@@ -369,6 +405,7 @@ namespace CMS.Api.Controllers.Notifications
         /// Send SMS notification by notification type (finds SMS template automatically)
         /// </summary>
         [HttpPost("send-sms-by-type")]
+        [Authorize(Roles = "Staff")]
         public async Task<ActionResult> SendSmsNotificationByType([FromBody] SendSmsByTypeDto dto)
         {
             try
@@ -459,31 +496,5 @@ namespace CMS.Api.Controllers.Notifications
                 UpdatedBy = User.Identity?.Name ?? "System"
             };
         }
-    }
-
-    public class SendNotificationByTypeDto
-    {
-        public NotificationType Type { get; set; }
-        public NotificationChannelType ChannelType { get; set; }
-        public string RecipientEmail { get; set; } = string.Empty;
-        public string? RecipientPhone { get; set; }
-        public string RecipientName { get; set; } = string.Empty;
-        public Dictionary<string, object>? Variables { get; set; }
-    }
-
-    public class SendSmsNotificationDto
-    {
-        public Guid TemplateId { get; set; }
-        public string RecipientPhone { get; set; } = string.Empty;
-        public string RecipientName { get; set; } = string.Empty;
-        public Dictionary<string, object>? Variables { get; set; }
-    }
-
-    public class SendSmsByTypeDto
-    {
-        public NotificationType Type { get; set; }
-        public string RecipientPhone { get; set; } = string.Empty;
-        public string RecipientName { get; set; } = string.Empty;
-        public Dictionary<string, object>? Variables { get; set; }
     }
 }

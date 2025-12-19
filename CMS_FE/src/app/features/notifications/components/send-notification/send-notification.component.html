@@ -1,0 +1,108 @@
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Send Reminders</h1>
+    <p class="text-muted mb-0">Send email and SMS reminders to patients</p>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-6">
+      <div class="bg-white p-4 rounded shadow-sm">
+        <h5 class="mb-4">Send Email</h5>
+        
+        <div class="mb-4">
+          <label class="form-label fw-medium">Select Email Template</label>
+          <select class="form-select" [(ngModel)]="selectedEmailTemplate" (ngModelChange)="onEmailTemplateChange()">
+            <option *ngFor="let t of emailTemplates" [ngValue]="t">{{t.name}}</option>
+          </select>
+        </div>
+
+        <div class="mb-4" *ngIf="getTemplateContent(selectedEmailTemplate)">
+          <label class="form-label fw-medium">Template Preview:</label>
+          <div class="template-preview bg-light border rounded p-3">
+            <pre class="preview-content">{{ getEmailPreview() }}</pre>
+          </div>
+
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="showPayloadEmail" [(ngModel)]="showPayloadEmail">
+            <label class="form-check-label" for="showPayloadEmail">Show payload</label>
+          </div>
+
+          <div class="mt-2" *ngIf="showPayloadEmail">
+            <pre class="payload-box">{{ buildEmailPayload() | json }}</pre>
+          </div>
+        </div>
+        
+
+        <div class="mb-3">
+          <label class="form-label fw-medium">Recipient Email*</label>
+          <input type="email" class="form-control" [(ngModel)]="modelEmail.recipientEmail" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-medium">Recipient Name*</label>
+          <input type="text" class="form-control" [(ngModel)]="modelEmail.recipientName" required>
+        </div>
+
+        <div class="mb-4" *ngIf="selectedEmailTemplate">
+          <label class="form-label fw-medium">Template Variables:</label>
+          <app-template-variables #emailVariables 
+                                [variables]="emailTemplateVariables"
+                                type="email"
+                                (variablesChanged)="onVariableChange('email')"></app-template-variables>
+        </div>
+
+        <button class="btn btn-primary w-100" (click)="sendEmail()">Send Email</button>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="bg-white p-4 rounded shadow-sm">
+        <h5 class="mb-4">Send SMS</h5>
+        
+        <div class="mb-4">
+          <label class="form-label fw-medium">Select SMS Template</label>
+          <select class="form-select" [(ngModel)]="selectedSmsTemplate" (ngModelChange)="onSmsTemplateChange()">
+            <option *ngFor="let t of smsTemplates" [ngValue]="t">{{t.name}}</option>
+          </select>
+        </div>
+
+        <div class="mb-4" *ngIf="getTemplateContent(selectedSmsTemplate)">
+          <label class="form-label fw-medium">Template Preview:</label>
+          <div class="template-preview bg-light border rounded p-3">
+            <pre class="preview-content">{{ getSmsPreview() }}</pre>
+          </div>
+
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="showPayloadSms" [(ngModel)]="showPayloadSms">
+            <label class="form-check-label" for="showPayloadSms">Show payload</label>
+          </div>
+
+          <div class="mt-2" *ngIf="showPayloadSms">
+            <pre class="payload-box">{{ buildSmsPayload() | json }}</pre>
+          </div>
+        </div>
+        
+
+        <div class="mb-3">
+          <label class="form-label fw-medium">Recipient Phone*</label>
+          <input type="tel" class="form-control" [(ngModel)]="modelSms.recipientPhone" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-medium">Recipient Name*</label>
+          <input type="text" class="form-control" [(ngModel)]="modelSms.recipientName" required>
+        </div>
+
+        <div class="mb-4" *ngIf="selectedSmsTemplate">
+          <label class="form-label fw-medium">Template Variables:</label>
+          <app-template-variables #smsVariables 
+                                [variables]="smsTemplateVariables"
+                                type="sms"
+                                (variablesChanged)="onVariableChange('sms')"></app-template-variables>
+        </div>
+
+        <button class="btn btn-success w-100" (click)="sendSms()">Send SMS</button>
+      </div>
+    </div>
+  </div>
+</div>
