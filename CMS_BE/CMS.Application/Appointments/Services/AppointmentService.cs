@@ -25,6 +25,7 @@ namespace CMS.Application.Appointments.Services
             {
                 AppointmentID = Guid.NewGuid(),
                 PatientID = request.PatientID,
+                user_id = request.user_id, // Store user_id for easier querying
                 DoctorID = request.DoctorID,
                 AppointmentDate = request.AppointmentDate,
                 StartTime = request.StartTime,
@@ -57,6 +58,7 @@ namespace CMS.Application.Appointments.Services
                             QueueID = Guid.NewGuid(),
                             AppointmentID = appointment.AppointmentID,
                             PatientID = request.PatientID,
+                            user_id = request.user_id, // Store user_id
                             DoctorID = request.DoctorID,
                             QueueZone = AppointmentType.FollowUp,
                             QueuePosition = queuePosition,

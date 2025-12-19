@@ -17,6 +17,8 @@ namespace CMS.Domain.Clinic.Entities
         [Required]
         public Guid PatientID { get; set; }
         
+        public Guid? user_id { get; set; } // Direct link to user
+        
         [Required]
         public Guid DoctorID { get; set; }
         

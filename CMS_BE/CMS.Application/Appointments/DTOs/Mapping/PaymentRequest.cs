@@ -8,6 +8,7 @@ namespace CMS.Models
         public bool IsFollowup { get; set; }
         public string Currency { get; set; } = "INR";
         public string PatientId { get; set; } = string.Empty;
+        public string? UserId { get; set; } // User ID for EMR linking
         public string Description { get; set; } = string.Empty;
         
         // Appointment booking details
@@ -21,6 +22,7 @@ namespace CMS.Models
         // Helper properties to convert strings to GUIDs
         public Guid? DoctorIdGuid => string.IsNullOrEmpty(DoctorId) ? null : Guid.TryParse(DoctorId, out var guid) ? guid : null;
         public Guid? SlotIdGuid => string.IsNullOrEmpty(SlotId) ? null : Guid.TryParse(SlotId, out var guid) ? guid : null;
+        public Guid? UserIdGuid => string.IsNullOrEmpty(UserId) ? null : Guid.TryParse(UserId, out var guid) ? guid : null;
     }
 
     public class PaymentResponse
@@ -40,6 +42,7 @@ namespace CMS.Models
         
         // Optional: Pass appointment details again to be stateless/robust
         public string? PatientId { get; set; }
+        public string? UserId { get; set; } // User ID for EMR linking
         public string? DoctorId { get; set; }
         public string? AppointmentDate { get; set; }
         public string? StartTime { get; set; }
@@ -49,5 +52,6 @@ namespace CMS.Models
         
         // Helper
         public Guid? DoctorIdGuid => string.IsNullOrEmpty(DoctorId) ? null : Guid.TryParse(DoctorId, out var guid) ? guid : null;
+        public Guid? UserIdGuid => string.IsNullOrEmpty(UserId) ? null : Guid.TryParse(UserId, out var guid) ? guid : null;
     }
 }

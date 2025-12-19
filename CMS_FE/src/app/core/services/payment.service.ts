@@ -9,6 +9,7 @@ export interface PaymentRequest {
   isFollowup: boolean;
   currency: string;
   patientId: string;
+  userId?: string; // User ID for EMR linking
   description: string;
   // Appointment booking details (appointment created after payment succeeds)
   doctorId?: string;

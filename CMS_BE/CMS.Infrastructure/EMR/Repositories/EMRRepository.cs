@@ -24,11 +24,32 @@ namespace CMS.Infrastructure.EMR.Repositories
 
         public async Task<EMRRecord?> GetByPatientIdAsync(Guid patientId)
         {
+            // First, try to find the patient to see if they have a user_id
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.patient_id == patientId);
+
+            if (patient != null && patient.user_id.HasValue)
+            {
+                // If patient has a user_id, find EMR by user_id
+                return await GetByUserIdAsync(patient.user_id.Value);
+            }
+
+            // Fallback to finding by PatientID (for legacy records or if user_id is missing)
             return await _context.EMRRecords
                 .Include(e => e.Patient)
                 .Include(e => e.Encounters)
                     .ThenInclude(enc => enc.Diagnoses)
                 .FirstOrDefaultAsync(e => e.PatientID == patientId && !e.IsDeleted);
+        }
+
+        public async Task<EMRRecord?> GetByUserIdAsync(Guid userId)
+        {
+            return await _context.EMRRecords
+                .Include(e => e.User)
+                .Include(e => e.Patient)
+                .Include(e => e.Encounters)
+                    .ThenInclude(enc => enc.Diagnoses)
+                .FirstOrDefaultAsync(e => e.user_id == userId && !e.IsDeleted);
         }
 
         public async Task<EMRRecord> CreateAsync(EMRRecord emrRecord)

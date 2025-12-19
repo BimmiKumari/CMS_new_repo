@@ -42,9 +42,11 @@ namespace CMS.Application.EMR.Services
                     continue;
                 }
                 
-                // Get user name through appointment -> patient relationship
+                // Get user name through appointment -> user relationship
                 var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == queue.AppointmentID);
-                var user = appointment != null ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.PatientID) : null;
+                var user = appointment != null && appointment.user_id.HasValue 
+                    ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.user_id.Value) 
+                    : null;
                 var patientName = user?.Name ?? $"Patient {queue.PatientID.ToString().Substring(0, 8)}";
                 
                 Console.WriteLine($"[DEBUG] Found patient: {patientName}");
@@ -83,6 +85,7 @@ namespace CMS.Application.EMR.Services
                     CheckedInAt = queue.CheckedInAt,
                     IsFollowUp = appointmentType == AppointmentType.FollowUp,
                     PreviousEncounterID = previousEncounterId,
+                    user_id = user?.UserID,
                     ProfileImagePath = patient.profile_image_path,
                     PhoneNumber = user?.PhoneNumber
                 };
@@ -160,6 +163,7 @@ namespace CMS.Application.EMR.Services
                 QueueZone = queueZone,
                 QueuePosition = queuePosition,
                 QueueStatus = QueueStatusType.Waiting,
+                user_id = appointment.user_id,
                 AppointmentTimeSlot = appointment.StartTime,
                 AppointmentDate = appointmentDate,
                 CreatedAt = DateTime.UtcNow,
@@ -168,7 +172,9 @@ namespace CMS.Application.EMR.Services
 
             await _queueRepository.CreateAsync(queue);
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.PatientID);
+            var user = appointment.user_id.HasValue 
+                ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.user_id.Value) 
+                : null;
 
             return new QueuePatientDto
             {
@@ -187,6 +193,7 @@ namespace CMS.Application.EMR.Services
                 AppointmentTimeSlot = queue.AppointmentTimeSlot,
                 AppointmentDate = queue.AppointmentDate,
                 IsFollowUp = isFollowUp,
+                user_id = user?.UserID,
                 ProfileImagePath = patient.profile_image_path
             };
         }
@@ -215,7 +222,9 @@ namespace CMS.Application.EMR.Services
 
             var patient = await _context.Patients.FindAsync(queue.PatientID);
             var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == queue.AppointmentID);
-            var user = appointment != null ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.PatientID) : null;
+            var user = appointment != null && appointment.user_id.HasValue 
+                ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.user_id.Value) 
+                : null;
 
             return new QueuePatientDto
             {
@@ -231,7 +240,8 @@ namespace CMS.Application.EMR.Services
                 QueueStatus = queue.QueueStatus,
                 AppointmentTimeSlot = queue.AppointmentTimeSlot,
                 AppointmentDate = queue.AppointmentDate,
-                CheckedInAt = queue.CheckedInAt
+                CheckedInAt = queue.CheckedInAt,
+                user_id = user?.UserID
             };
         }
 

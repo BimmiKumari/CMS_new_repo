@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using CMS.Domain.EMR.Entities;
+using CMS.Domain.Auth.Entities;
 
 namespace CMS.Domain.Appointments.Entities
 {
@@ -9,6 +11,10 @@ namespace CMS.Domain.Appointments.Entities
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid patient_id { get; set; }
+        
+        // Link to User - allows multiple patient records per user but one EMR per user
+        [JsonPropertyName("user_id")]
+        public Guid? user_id { get; set; }
         
         public DateOnly date_of_birth { get; set; }
         public char sex { get; set; }
@@ -40,7 +46,8 @@ namespace CMS.Domain.Appointments.Entities
         
         public string? medical_reports_path { get; set; }
         
-        // Navigation property
+        // Navigation properties
+        public User? User { get; set; }
         public EMRRecord? EMRRecord { get; set; }
         
     }

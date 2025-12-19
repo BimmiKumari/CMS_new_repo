@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS.Data.Migrations
 {
     [DbContext(typeof(CmsDbContext))]
-    [Migration("20251218100423_AddEMRSystemAndCleanupUser")]
-    partial class AddEMRSystemAndCleanupUser
+    [Migration("20251219023213_FixPatientSchema")]
+    partial class FixPatientSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -31,6 +31,9 @@ namespace CMS.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime>("AppointmentDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("AppointmentType")
                         .HasColumnType("int");
 
@@ -39,7 +42,7 @@ namespace CMS.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<Guid>("CreatedBy")
+                    b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -69,9 +72,6 @@ namespace CMS.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<Guid>("SlotID")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time");
 
@@ -90,8 +90,6 @@ namespace CMS.Data.Migrations
                     b.HasIndex("DoctorID");
 
                     b.HasIndex("PatientID");
-
-                    b.HasIndex("SlotID");
 
                     b.ToTable("Appointments");
                 });
@@ -650,9 +648,6 @@ namespace CMS.Data.Migrations
                         .HasColumnType("time")
                         .HasDefaultValue(new TimeSpan(0, 9, 0, 0, 0));
 
-                    b.Property<Guid?>("UserID")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("WorkingDays")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -661,8 +656,6 @@ namespace CMS.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("DoctorID");
-
-                    b.HasIndex("UserID");
 
                     b.ToTable("Doctors");
                 });
@@ -1072,9 +1065,6 @@ namespace CMS.Data.Migrations
                     b.Property<Guid>("EncounterID")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("EncounterID1")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("FileUrl")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1099,8 +1089,6 @@ namespace CMS.Data.Migrations
                     b.HasIndex("DateUploaded");
 
                     b.HasIndex("EncounterID");
-
-                    b.HasIndex("EncounterID1");
 
                     b.HasIndex("ReportType");
 
@@ -1681,8 +1669,7 @@ namespace CMS.Data.Migrations
                     b.HasOne("CMS.Domain.Auth.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("CMS.Domain.Auth.Entities.User", null)
                         .WithMany()
@@ -1693,12 +1680,6 @@ namespace CMS.Data.Migrations
                     b.HasOne("CMS.Domain.Appointments.Entities.Patient", null)
                         .WithMany()
                         .HasForeignKey("PatientID")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("CMS.Domain.Appointments.Entities.TimeSlot", null)
-                        .WithMany()
-                        .HasForeignKey("SlotID")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
@@ -1735,15 +1716,11 @@ namespace CMS.Data.Migrations
 
             modelBuilder.Entity("CMS.Domain.Clinic.Entities.Doctor", b =>
                 {
-                    b.HasOne("CMS.Domain.Auth.Entities.User", null)
+                    b.HasOne("CMS.Domain.Auth.Entities.User", "User")
                         .WithOne()
                         .HasForeignKey("CMS.Domain.Clinic.Entities.Doctor", "DoctorID")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.HasOne("CMS.Domain.Auth.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserID");
 
                     b.Navigation("User");
                 });
@@ -1860,15 +1837,11 @@ namespace CMS.Data.Migrations
 
             modelBuilder.Entity("CMS.Domain.EMR.Entities.MedicalReport", b =>
                 {
-                    b.HasOne("CMS.Domain.Clinic.Entities.PatientEncounter", null)
+                    b.HasOne("CMS.Domain.Clinic.Entities.PatientEncounter", "Encounter")
                         .WithMany("MedicalReports")
                         .HasForeignKey("EncounterID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("CMS.Domain.Clinic.Entities.PatientEncounter", "Encounter")
-                        .WithMany()
-                        .HasForeignKey("EncounterID1");
 
                     b.Navigation("Encounter");
                 });

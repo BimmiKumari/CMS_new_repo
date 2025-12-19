@@ -62,7 +62,7 @@ namespace CMS.Controllers
         {
             Console.WriteLine($"=== CREATE ORDER ENDPOINT HIT ===");
             Console.WriteLine($"Request received with IsFollowup: {request?.IsFollowup}");
-            Console.WriteLine($"Raw request - PatientId: {request?.PatientId}, DoctorId: {request?.DoctorId}");
+            Console.WriteLine($"Raw request - PatientId: {request?.PatientId}, UserId: {request?.UserId}, DoctorId: {request?.DoctorId}");
             Console.WriteLine($"=================================");
             
             if (request == null) return BadRequest("Invalid request");
@@ -75,7 +75,7 @@ namespace CMS.Controllers
             try
             {
                 Console.WriteLine($"Creating order - Amount: {request.Amount}, Original: {request.OriginalAmount}, Discount: {request.DiscountAmount}, IsFollowup: {request.IsFollowup}");
-                Console.WriteLine($"Appointment Details - DoctorId: {request.DoctorId}, PatientId: {request.PatientId}");
+                Console.WriteLine($"Appointment Details - DoctorId: {request.DoctorId}, PatientId: {request.PatientId}, UserId: {request.UserId}");
                 Console.WriteLine($"Appointment Details - StartTime: {request.StartTime}, EndTime: {request.EndTime}, Date: {request.AppointmentDate}");
                 Console.WriteLine($"Appointment Details - ReasonForVisit: {request.ReasonForVisit}");
                 
@@ -102,6 +102,7 @@ namespace CMS.Controllers
                 Console.WriteLine($"Storing IsFollowup_{orderId} = {request.IsFollowup.ToString().ToLower()}");
                 Console.WriteLine($"Storing DoctorId_{orderId} = {request.DoctorId}");
                 Console.WriteLine($"Storing PatientId_{orderId} = {request.PatientId}");
+                Console.WriteLine($"Storing UserId_{orderId} = {request.UserId}");
                 Console.WriteLine($"Storing StartTime_{orderId} = {request.StartTime}");
                 Console.WriteLine($"========================");
                 
@@ -148,6 +149,7 @@ namespace CMS.Controllers
                     paymentData = new PaymentRequest
                     {
                         PatientId = verification.PatientId,
+                        UserId = verification.UserId, // Include UserId
                         DoctorId = verification.DoctorId,
                         AppointmentDate = verification.AppointmentDate,
                         StartTime = verification.StartTime,
@@ -162,6 +164,7 @@ namespace CMS.Controllers
                 
                 Console.WriteLine($"=== DATA RETRIEVAL ===");
                 Console.WriteLine($"Retrieved payment data: {paymentData != null}");
+                Console.WriteLine($"Retrieved UserId: {paymentData?.UserId}");
                 
                 var paymentAmount = paymentData?.Amount ?? 500m;
                 var originalAmount = paymentData?.OriginalAmount ?? 500m;
@@ -258,6 +261,8 @@ namespace CMS.Controllers
                     Console.WriteLine($"DoctorId (string): {paymentData?.DoctorId}");
                     Console.WriteLine($"DoctorIdGuid: {paymentData?.DoctorIdGuid}");
                     Console.WriteLine($"PatientId: {paymentData?.PatientId}");
+                    Console.WriteLine($"UserId: {paymentData?.UserId}");
+                    Console.WriteLine($"UserIdGuid: {paymentData?.UserIdGuid}");
                     Console.WriteLine($"StartTime: {paymentData?.StartTime}");
                     Console.WriteLine($"EndTime: {paymentData?.EndTime}");
                     Console.WriteLine($"AppointmentDate: {paymentData?.AppointmentDate}");
@@ -309,10 +314,11 @@ namespace CMS.Controllers
                             return Ok(new { success = true, message = "Payment verified successfully but invalid appointment data", billPath = payment.bill_pdf_path });
                         }
 
-                        // Create appointment request
+                        // Create appointment request with user_id
                         var createAppointmentDto = new CreateAppointmentRequestDto
                         {
                             PatientID = patientId,
+                            user_id = paymentData.UserIdGuid, // Add user_id for EMR linking
                             DoctorID = paymentData.DoctorIdGuid.Value,
                             AppointmentDate = appointmentDate,
                             StartTime = startTime,
@@ -321,7 +327,7 @@ namespace CMS.Controllers
                             ReasonForVisit = paymentData.ReasonForVisit ?? "General Consultation"
                         };
 
-                        Console.WriteLine($"✅ CreateAppointmentDto created - DoctorID: {createAppointmentDto.DoctorID}, Date: {createAppointmentDto.AppointmentDate:yyyy-MM-dd}, StartTime: {createAppointmentDto.StartTime}");
+                        Console.WriteLine($"✅ CreateAppointmentDto created - DoctorID: {createAppointmentDto.DoctorID}, UserID: {createAppointmentDto.user_id}, Date: {createAppointmentDto.AppointmentDate:yyyy-MM-dd}, StartTime: {createAppointmentDto.StartTime}");
 
                         // Use a transaction to ensure all operations succeed together
                         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -354,21 +360,32 @@ namespace CMS.Controllers
                             await _context.SaveChangesAsync();
                             Console.WriteLine($"✅ Appointment status updated to Scheduled");
                             
-                            // 1. Create or get EMR record for patient
-                            var existingEmr = await _emrService.GetEMRByPatientIdAsync(patientId);
-                            if (existingEmr == null)
+                            // 1. Create or get EMR record for user (not patient)
+                            Guid? userId = paymentData.UserIdGuid;
+                            if (userId.HasValue)
                             {
-                                _logger.LogInformation($"Creating new EMR record for patient {patientId}");
-                                Console.WriteLine($"📋 Creating new EMR record for patient {patientId}");
-                                await _emrService.CreateEMRRecordAsync(new CreateEMRRecordDto 
-                                { 
-                                    PatientID = patientId 
-                                });
-                                Console.WriteLine($"✅ EMR record created");
+                                var existingEmr = await _emrService.GetEMRByUserIdAsync(userId.Value);
+                                if (existingEmr == null)
+                                {
+                                    _logger.LogInformation($"Creating new EMR record for user {userId.Value}");
+                                    Console.WriteLine($"📋 Creating new EMR record for user {userId.Value}");
+                                    await _emrService.CreateEMRRecordAsync(new CreateEMRRecordDto 
+                                    { 
+                                        UserID = userId.Value,
+                                        PatientID = patientId // Optional, for backward compatibility
+                                    });
+                                    Console.WriteLine($"✅ EMR record created for user {userId.Value}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"✅ EMR record already exists for user {userId.Value} - Reusing existing EMR");
+                                    _logger.LogInformation($"Reusing existing EMR record {existingEmr.EMRRecordID} for user {userId.Value}");
+                                }
                             }
                             else
                             {
-                                Console.WriteLine($"✅ EMR record already exists for patient {patientId}");
+                                Console.WriteLine($"⚠️ No user_id provided, skipping EMR creation");
+                                _logger.LogWarning("No user_id provided in payment data, EMR creation skipped");
                             }
 
                             // 2. Add patient to queue
@@ -550,6 +567,7 @@ namespace CMS.Controllers
                     .Select(a => new {
                         a.AppointmentID,
                         a.PatientID,
+                        a.user_id,
                         a.DoctorID,
                         a.Status,
                         a.AppointmentType,
@@ -588,6 +606,7 @@ namespace CMS.Controllers
                         paymentData.DiscountAmount,
                         paymentData.IsFollowup,
                         paymentData.PatientId,
+                        paymentData.UserId,
                         paymentData.DoctorId,
                         paymentData.SlotId,
                         paymentData.StartTime,
