@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS.Data.Migrations
 {
     [DbContext(typeof(CmsDbContext))]
-    [Migration("20251218233154_removing")]
-    partial class removing
+    [Migration("20251219025757_InitialAuthMigration")]
+    partial class InitialAuthMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

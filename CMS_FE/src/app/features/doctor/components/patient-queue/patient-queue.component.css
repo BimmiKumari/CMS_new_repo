@@ -1,17 +1,41 @@
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+mat-icon {
+  font-family: 'Material Icons' !important;
+  font-weight: normal;
+  font-style: normal;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga';
+}
+
 .dashboard-container {
   display: grid;
-  grid-template-columns: 240px 1fr 240px;
-  gap: 0;
-  height: calc(100vh - 64px);
-  background: #f8f9fa;
+  grid-template-columns: 300px 1fr 300px;
+  gap: 1rem;
+  min-height: calc(100vh - 140px);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 1rem;
 }
 
 /* Left Sidebar - Regular Queue */
 .queue-sidebar {
-  background: white;
-  border-right: 1px solid #e5e7eb;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
-  padding: 16px 12px;
+  padding: 1.5rem;
 }
 
 .queue-section {
@@ -46,10 +70,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   color: #1f2937;
-  margin-bottom: 4px;
+  margin-bottom: 0.5rem;
 }
 
 .dot {
@@ -58,8 +82,8 @@
   border-radius: 50%;
 }
 
-.dot.regular { background: #6b7280; }
-.dot.followup { background: #3b82f6; }
+.dot.regular { background: #10b981; }
+.dot.followup { background: #059669; }
 .dot.emergency { background: #ef4444; }
 
 .patient-count {
@@ -88,8 +112,9 @@
 }
 
 .patient-card.active {
-  background: #eff6ff;
-  border-color: #3b82f6;
+  background: #f0fdf4;
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
 }
 
 .card-content {
@@ -199,9 +224,12 @@
 
 /* Main EMR Panel */
 .main-emr-panel {
-  background: white;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
-  padding: 24px;
+  padding: 2rem;
 }
 
 .patient-summary {
@@ -467,10 +495,12 @@
 
 /* Right Sidebar - Follow-up & Emergency */
 .followup-sidebar {
-  background: white;
-  border-left: 1px solid #e5e7eb;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
-  padding: 16px 12px;
+  padding: 1.5rem;
 }
 
 .priority-tag {
@@ -521,4 +551,160 @@
   background: #d1fae5 !important;
   border-color: #10b981 !important;
   color: #065f46 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .dashboard-container {
+    grid-template-columns: 250px 1fr 250px;
+  }
+  
+  .summary-info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 992px) {
+  .dashboard-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .queue-sidebar,
+  .followup-sidebar {
+    display: none;
+  }
+  
+  .emr-body {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .consultation-actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 0.5rem;
+  }
+  
+  .main-emr-panel {
+    padding: 1rem;
+  }
+  
+  .patient-summary {
+    flex-direction: column;
+    padding: 1rem;
+  }
+  
+  .avatar-large {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .summary-name {
+    font-size: 1.25rem;
+  }
+  
+  .action-buttons {
+    gap: 8px;
+  }
+  
+  .secondary-action {
+    height: 40px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 0.25rem;
+  }
+  
+  .main-emr-panel {
+    padding: 0.75rem;
+  }
+  
+  .patient-summary {
+    padding: 0.75rem;
+  }
+  
+  .section-title-large {
+    font-size: 1rem;
+  }
+  
+  .card-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .accept-btn,
+  .reject-btn {
+    width: 100%;
+    margin-right: 0;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .dashboard-container {
+    background: #111827;
+  }
+  
+  .queue-sidebar,
+  .main-emr-panel,
+  .followup-sidebar {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .patient-card {
+    background: #374151;
+    border-color: #4b5563;
+  }
+  
+  .patient-card:hover {
+    background: #4b5563;
+  }
+  
+  .patient-card.active {
+    background: #065f46;
+    border-color: #10b981;
+  }
+  
+  .patient-summary,
+  .history-card,
+  .visit-form {
+    background: #374151;
+  }
+  
+  .section-title,
+  .summary-name,
+  .section-title-large,
+  .patient-name,
+  .value {
+    color: #ffffff;
+  }
+  
+  .label,
+  .patient-count,
+  .patient-id,
+  .history-text {
+    color: #d1d5db;
+  }
+  
+  .secondary-action {
+    background: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #d1d5db !important;
+  }
+  
+  .empty-state h2 {
+    color: #d1d5db;
+  }
 }

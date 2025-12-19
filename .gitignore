@@ -8,6 +8,8 @@ CMS_BE/build_errors.txt
 .idea/
 .agent/
 .gemini/
+CMS_BE/CMS.Api/wwwroot/bills/
+
 # Build logs
 CMS_BE/CMS.Api/build_log_*.txt
 

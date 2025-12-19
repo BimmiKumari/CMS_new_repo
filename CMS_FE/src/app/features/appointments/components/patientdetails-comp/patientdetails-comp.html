@@ -1,5 +1,4 @@
 <div class="patient-container">
-  <h2>Patient Information Form</h2>
 
   <!-- Appointment Summary -->
   <div class="appointment-summary" *ngIf="appointmentData">
@@ -98,8 +97,8 @@
     <!-- Medical Complaints -->
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Chief Medical Complaints</mat-label>
-      <textarea matInput rows="2" formControlName="chief_medical_complaints"
-        placeholder="Describe complaints"></textarea>
+      <textarea matInput rows="4" cdkTextareaAutosize cdkAutosizeMinRows="4" 
+        formControlName="chief_medical_complaints" placeholder="Describe your medical complaints in detail..."></textarea>
     </mat-form-field>
 
     <!-- Previous Consultation -->
@@ -154,8 +153,9 @@
 
     <!-- Submit Button -->
     <div class="form-actions">
-      <button mat-stroked-button type="button" (click)="goBack()" class="back-btn">Back</button>
-      <button mat-raised-button color="primary" type="button" (click)="makePayment()" [disabled]="isSubmitting">
+      <button mat-raised-button class="submit-btn" type="button" (click)="makePayment()" [disabled]="isSubmitting">
+        <mat-icon *ngIf="!isSubmitting">payment</mat-icon>
+        <mat-icon *ngIf="isSubmitting">hourglass_empty</mat-icon>
         {{isSubmitting ? 'Processing...' : 'Submit & Pay'}}
       </button>
     </div>
