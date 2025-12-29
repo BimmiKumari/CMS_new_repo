@@ -516,12 +516,27 @@ export class PatientConsultationComponent implements OnInit {
       return;
     }
 
-    this.emrService.removeFromQueue(this.selectedPatient.queueID).subscribe({
+    // First update the queue status to completed
+    const updateDto = {
+      queueID: this.selectedPatient.queueID,
+      status: 3 // Completed
+    };
+
+    this.emrService.updateQueueStatus(updateDto).subscribe({
       next: () => {
-        this.snackBar.open(`${this.selectedPatient!.patientName} consultation completed successfully`, 'Close', { duration: 3000 });
+        // Then remove from queue
+        this.emrService.removeFromQueue(this.selectedPatient!.queueID).subscribe({
+          next: () => {
+            this.snackBar.open(`${this.selectedPatient!.patientName} consultation completed successfully`, 'Close', { duration: 3000 });
+          },
+          error: (error) => {
+            console.error('Error removing from queue:', error);
+            this.snackBar.open('Consultation marked complete but error removing from queue', 'Close', { duration: 3000 });
+          }
+        });
       },
       error: (error) => {
-        console.error('Error completing consultation:', error);
+        console.error('Error updating queue status:', error);
         this.snackBar.open('Error completing consultation', 'Close', { duration: 3000 });
       }
     });

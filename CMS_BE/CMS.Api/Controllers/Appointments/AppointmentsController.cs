@@ -73,6 +73,38 @@ namespace CMS.Api.Controllers.Appointments
                 return StatusCode(500, ApiResponse<IEnumerable<AppointmentDto>>.ErrorResponse("An error occurred"));
             }
         }
+
+        [HttpGet("patient/{patientId}")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<AppointmentDto>>>> GetPatientAppointments(Guid patientId)
+        {
+            try
+            {
+                _logger.LogInformation("=== GET PATIENT APPOINTMENTS DEBUG ===");
+                _logger.LogInformation("Patient ID received: {PatientId}", patientId);
+                
+                var result = await _appointmentService.GetPatientAppointmentsAsync(patientId);
+                
+                _logger.LogInformation("Appointments found: {Count}", result.Count());
+                foreach (var apt in result)
+                {
+                    _logger.LogInformation("Appointment: ID={AppointmentId}, Patient={PatientId}, Doctor={DoctorName}, Date={Date}", 
+                        apt.AppointmentID, apt.PatientID, apt.DoctorName, apt.AppointmentDate);
+                }
+                
+                return Ok(ApiResponse<IEnumerable<AppointmentDto>>.SuccessResponse(result, "Patient appointments retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching patient appointments for {PatientId}", patientId);
+                return StatusCode(500, ApiResponse<IEnumerable<AppointmentDto>>.ErrorResponse("An error occurred"));
+            }
+        }
+
+        [HttpGet("patient/{patientId}/test")]
+        public IActionResult TestPatientEndpoint(Guid patientId)
+        {
+            return Ok(new { message = "Endpoint working", patientId = patientId });
+        }
         
         [HttpGet("test/all")]
         public async Task<IActionResult> GetAllAppointments()

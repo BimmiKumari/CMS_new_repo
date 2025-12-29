@@ -3,6 +3,7 @@ export interface User {
   userID?: string;
   email: string;
   name: string;
+  profilePictureURL?: string;
   phoneNumber?: string;
   role: RoleType;
   isEmailVerified?: boolean;

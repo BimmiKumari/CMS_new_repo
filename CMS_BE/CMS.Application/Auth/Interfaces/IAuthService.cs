@@ -15,6 +15,9 @@ namespace CMS.Application.Auth.Interfaces
         Task ResetPasswordWithOtpAsync(string email, string code, string newPassword);
         Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
         Task AcceptInvitationAsync(string token, string newPassword);
+        Task<object> GetUserProfileAsync(Guid userId);
+        Task UpdateUserProfileAsync(Guid userId, UpdateProfileRequest request);
+        Task<string> UploadProfilePhotoAsync(Guid userId, Stream fileStream, string fileName);
     }
 }
 

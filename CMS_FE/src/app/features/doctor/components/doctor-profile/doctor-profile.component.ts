@@ -7,8 +7,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatIconModule } from '@angular/material/icon';
 import { DoctorService } from '../../services/doctor.service';
 import { SPECIALIZATIONS } from '../../../../shared/constants/specializations';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-doctor-profile',
@@ -21,7 +23,8 @@ import { SPECIALIZATIONS } from '../../../../shared/constants/specializations';
     MatInputModule,
     MatButtonModule,
     MatSelectModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatIconModule
   ],
   template: `
     <mat-card class="profile-card">
@@ -31,6 +34,29 @@ import { SPECIALIZATIONS } from '../../../../shared/constants/specializations';
       </mat-card-header>
       
       <mat-card-content>
+        <!-- Profile Photo Section -->
+        <div class="photo-section">
+          <div class="photo-container">
+            <div class="photo-wrapper" [class.has-photo]="hasProfilePhoto()">
+              <img *ngIf="hasProfilePhoto()" 
+                   [src]="profilePhotoUrl" 
+                   alt="Profile Photo" 
+                   class="profile-photo">
+              <div *ngIf="!hasProfilePhoto()" class="avatar-placeholder" (click)="fileInput.click()">
+                <img [src]="getDefaultAvatar()" alt="Avatar" class="profile-photo">
+                <div class="upload-overlay">
+                  <mat-icon class="camera-icon">camera_alt</mat-icon>
+                  <span class="upload-text">Upload Photo</span>
+                </div>
+              </div>
+            </div>
+            <button mat-mini-fab color="primary" class="photo-edit-btn" (click)="fileInput.click()">
+              <mat-icon>camera_alt</mat-icon>
+            </button>
+            <input #fileInput type="file" accept="image/*" (change)="onPhotoSelected($event)" style="display: none;">
+          </div>
+        </div>
+
         <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form">
           <div class="form-row">
             <mat-form-field appearance="outline">
@@ -131,6 +157,71 @@ import { SPECIALIZATIONS } from '../../../../shared/constants/specializations';
       justify-content: flex-end;
       margin-top: 20px;
     }
+    .photo-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+    .photo-container {
+      position: relative;
+      display: inline-block;
+    }
+    .photo-wrapper {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      overflow: hidden;
+    }
+    .profile-photo {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #10b981;
+    }
+    .avatar-placeholder {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .upload-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(16, 185, 129, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      border-radius: 50%;
+    }
+    .avatar-placeholder:hover .upload-overlay {
+      opacity: 1;
+    }
+    .camera-icon {
+      font-size: 28px;
+      margin-bottom: 4px;
+    }
+    .upload-text {
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+    .photo-edit-btn {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 32px;
+      height: 32px;
+    }
     @media (max-width: 600px) {
       .form-row {
         grid-template-columns: 1fr;
@@ -143,11 +234,14 @@ export class DoctorProfileComponent implements OnInit {
   loading = false;
   days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   specializations = SPECIALIZATIONS;
+  profilePhotoUrl: string | undefined;
+  selectedFile: File | null = null;
 
   constructor(
     private fb: FormBuilder,
     private doctorService: DoctorService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private authService: AuthService
   ) {
     this.profileForm = this.fb.group({
       specialization: ['', Validators.required],
@@ -164,6 +258,58 @@ export class DoctorProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadProfile();
+    this.loadUserPhoto();
+  }
+
+  loadUserPhoto(): void {
+    const user = this.authService.getCurrentUser();
+    if (user) {
+      this.profilePhotoUrl = user.profilePictureURL;
+    }
+  }
+
+  onPhotoSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      this.selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.profilePhotoUrl = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+      this.uploadPhoto();
+    }
+  }
+
+  uploadPhoto(): void {
+    if (!this.selectedFile) return;
+    
+    const formData = new FormData();
+    formData.append('photo', this.selectedFile);
+    
+    (formData as any).forEach((value: any, key: string) => console.log('FormData:', key, value));
+
+    this.authService.updateProfilePhoto(formData).subscribe({
+      next: (response) => {
+        if (response.success) {
+          // Update the local profile photo URL
+          this.profilePhotoUrl = response.data?.url || response.data?.profilePictureURL;
+          
+          // Update current user in auth service so navbar reflects change immediately
+          const currentUser = this.authService.getCurrentUser();
+          if (currentUser) {
+            const updatedUser = { ...currentUser, profilePictureURL: this.profilePhotoUrl };
+            // Use the private setCurrentUser method to update both localStorage and BehaviorSubject
+            (this.authService as any).setCurrentUser(updatedUser);
+          }
+          
+          this.snackBar.open('Photo updated successfully!', 'Close', { duration: 3000 });
+        }
+      },
+      error: () => {
+        this.snackBar.open('Failed to update photo', 'Close', { duration: 3000 });
+      }
+    });
   }
 
   loadProfile(): void {
@@ -199,6 +345,16 @@ export class DoctorProfileComponent implements OnInit {
       return time.substring(0, 5);
     }
     return '';
+  }
+
+  hasProfilePhoto(): boolean {
+    return !!(this.profilePhotoUrl && this.profilePhotoUrl.trim() !== '' && !this.profilePhotoUrl.includes('dicebear.com'));
+  }
+
+  getDefaultAvatar(): string {
+    const user = this.authService.getCurrentUser();
+    const name = user?.name || 'Doctor';
+    return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981&textColor=ffffff`;
   }
 
   onSubmit(): void {

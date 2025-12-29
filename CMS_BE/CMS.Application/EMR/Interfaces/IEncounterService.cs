@@ -20,6 +20,7 @@ namespace CMS.Application.EMR.Interfaces
         Task<EncounterDetailDto> CreateEncounterAsync(CreateEncounterDto dto);
         Task<EncounterDetailDto> UpdateEncounterAsync(UpdateEncounterDto dto, Guid updatedBy, string userRole);
         Task<List<EncounterSummaryDto>> GetPatientEncountersAsync(Guid patientId);
+        Task<List<EncounterSummaryDto>> GetUserEncountersAsync(Guid userId);
         
         // EMR Component methods
         Task<VitalSignsDto> AddVitalSignsAsync(CreateVitalSignsDto dto);

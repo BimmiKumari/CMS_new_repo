@@ -23,6 +23,11 @@ import { AfterpaymentComp } from '../appointments/components/afterpayment-comp/a
 import { CalendarService, Doctor } from '../calendar/services/calendar.service';
 import { SPECIALIZATIONS } from '../../shared/constants/specializations';
 import { ActivatedRoute } from '@angular/router';
+import { AppointmentService } from '../../core/services/appointment.service';
+import { ProfileSetupComponent } from '../../shared/components/profile-setup.component';
+import { HealthRecordsComponent } from './components/health-records/health-records.component';
+import { PatientProfileComponent } from './components/patient-profile/patient-profile.component';
+import { UserAvatarComponent } from '../../shared/components/user-avatar.component';
 
 @Component({
   selector: 'app-patient-dashboard',
@@ -44,7 +49,10 @@ import { ActivatedRoute } from '@angular/router';
     AfterpaymentComp,
     MatFormFieldModule,
     MatSelectModule,
-    MatTooltipModule
+    MatTooltipModule,
+    HealthRecordsComponent,
+    PatientProfileComponent,
+    UserAvatarComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -63,13 +71,13 @@ import { ActivatedRoute } from '@angular/router';
             <mat-icon matListItemIcon>schedule</mat-icon>
             <span matListItemTitle>My Appointments</span>
           </a>
-          <a mat-list-item (click)="setActiveSection('check-in'); closeSidenavIfHandset()" [class.active]="activeSection === 'check-in'">
-            <mat-icon matListItemIcon>login</mat-icon>
-            <span matListItemTitle>Check-in</span>
-          </a>
           <a mat-list-item (click)="setActiveSection('health-records'); closeSidenavIfHandset()" [class.active]="activeSection === 'health-records'">
             <mat-icon matListItemIcon>folder_shared</mat-icon>
-            <span matListItemTitle>Health Records</span>
+            <span matListItemTitle>My Health Records</span>
+          </a>
+          <a mat-list-item (click)="setActiveSection('profile'); closeSidenavIfHandset()" [class.active]="activeSection === 'profile'">
+            <mat-icon matListItemIcon>person</mat-icon>
+            <span matListItemTitle>My Profile</span>
           </a>
         </mat-nav-list>
 
@@ -84,7 +92,11 @@ import { ActivatedRoute } from '@angular/router';
           <span class="toolbar-title">Patient Dashboard</span>
           <span class="spacer"></span>
           <div class="user-info">
-            <img [src]="getUserAvatar()" alt="User Avatar" class="user-avatar">
+            <app-user-avatar
+              [profilePictureURL]="currentUser?.profilePictureURL || ''"
+              [name]="currentUser?.name || 'Patient'"
+              [size]="36">
+            </app-user-avatar>
             <span class="user-name">{{ currentUser?.name || 'Patient' }}</span>
             <button mat-icon-button (click)="logout()" class="logout-btn" matTooltip="Logout">
               <mat-icon>logout</mat-icon>
@@ -197,32 +209,96 @@ import { ActivatedRoute } from '@angular/router';
 
             <!-- Upcoming Appointments -->
             <div *ngSwitchCase="'upcoming'">
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>No upcoming appointments found. Start by booking one!</p>
-                  <button mat-stroked-button color="primary" (click)="setActiveSection('book-appointment')">
-                    Book Now
-                  </button>
-                </mat-card-content>
-              </mat-card>
-            </div>
+              <div class="appointments-container">
+                <div class="appointments-header">
+                  <h1>My Appointments</h1>
+                  <p>View your upcoming and completed appointments</p>
+                </div>
 
-            <!-- Check-in -->
-            <div *ngSwitchCase="'check-in'">
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>Check-in for your today's appointments.</p>
-                </mat-card-content>
-              </mat-card>
+                <div *ngIf="loadingAppointments" class="loading-state">
+                  <mat-icon class="spin">sync</mat-icon>
+                  <p>Loading appointments...</p>
+                </div>
+
+                <div *ngIf="!loadingAppointments" class="appointments-grid">
+                  <!-- All Appointments -->
+                  <div class="appointments-column">
+                    <h2><mat-icon>event</mat-icon> All My Appointments</h2>
+                    <div *ngIf="upcomingAppointments.length === 0" class="no-appointments">
+                      <mat-icon>event_available</mat-icon>
+                      <p>No upcoming appointments</p>
+                      <button mat-stroked-button color="primary" (click)="setActiveSection('book-appointment')">
+                        Book Appointment
+                      </button>
+                    </div>
+                    <mat-card *ngFor="let appointment of upcomingAppointments" class="appointment-card upcoming">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="upcoming-icon">event</mat-icon>
+                        <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
+                        <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="appointment-details">
+                          <div class="detail-item">
+                            <mat-icon>access_time</mat-icon>
+                            <span>{{ appointment.startTime }} - {{ appointment.endTime }}</span>
+                          </div>
+                          <div class="detail-item">
+                            <mat-icon>info</mat-icon>
+                            <span class="status-badge" [ngClass]="getStatusClass(appointment)">{{ getStatusText(appointment) }}</span>
+                          </div>
+                          <div class="detail-item" *ngIf="appointment.reasonForVisit">
+                            <mat-icon>description</mat-icon>
+                            <span>{{ appointment.reasonForVisit }}</span>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  </div>
+
+                  <!-- Hidden Completed Section -->
+                  <div class="appointments-column" style="display: none;">
+                    <h2><mat-icon>check_circle</mat-icon> Completed Appointments</h2>
+                    <div *ngIf="completedAppointments.length === 0" class="no-appointments">
+                      <mat-icon>history</mat-icon>
+                      <p>No completed appointments</p>
+                    </div>
+                    <mat-card *ngFor="let appointment of completedAppointments" class="appointment-card completed">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="completed-icon">check_circle</mat-icon>
+                        <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
+                        <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="appointment-details">
+                          <div class="detail-item">
+                            <mat-icon>access_time</mat-icon>
+                            <span>{{ appointment.startTime }} - {{ appointment.endTime }}</span>
+                          </div>
+                          <div class="detail-item">
+                            <mat-icon>info</mat-icon>
+                            <span class="status-badge" [ngClass]="getStatusClass(appointment)">{{ getStatusText(appointment) }}</span>
+                          </div>
+                          <div class="detail-item" *ngIf="appointment.reasonForVisit">
+                            <mat-icon>description</mat-icon>
+                            <span>{{ appointment.reasonForVisit }}</span>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Health Records -->
             <div *ngSwitchCase="'health-records'">
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>Access your medical history and lab results here.</p>
-                </mat-card-content>
-              </mat-card>
+              <app-health-records></app-health-records>
+            </div>
+
+            <!-- My Profile -->
+            <div *ngSwitchCase="'profile'">
+              <app-patient-profile></app-patient-profile>
             </div>
 
             <!-- Welcome Screen -->
@@ -833,6 +909,160 @@ import { ActivatedRoute } from '@angular/router';
         color: #ffffff;
       }
     }
+    
+    /* Appointments Styles */
+    .appointments-container {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .appointments-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .appointments-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 0.5rem;
+    }
+    
+    .appointments-header p {
+      color: #64748b;
+      font-size: 1rem;
+    }
+    
+    .appointments-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    
+    .appointments-column h2 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 1rem;
+    }
+    
+    .appointment-card {
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+    }
+    
+    .appointment-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .appointment-card.upcoming {
+      border-left: 4px solid #10b981;
+    }
+    
+    .appointment-card.completed {
+      border-left: 4px solid #6b7280;
+    }
+    
+    .upcoming-icon {
+      background: #10b981 !important;
+      color: white !important;
+    }
+    
+    .completed-icon {
+      background: #6b7280 !important;
+      color: white !important;
+    }
+    
+    .appointment-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    
+    .detail-item mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #10b981;
+    }
+    
+    .no-appointments {
+      text-align: center;
+      padding: 2rem;
+      color: #64748b;
+    }
+    
+    .no-appointments mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 1rem;
+      color: #d1d5db;
+    }
+    
+    .status-badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .status-waiting {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-progress {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .status-completed {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    
+    .status-cancelled {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .status-noshow {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    
+    .status-scheduled {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    
+    @media (max-width: 768px) {
+      .appointments-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .appointments-container {
+        padding: 1rem;
+      }
+    }
   `]
 })
 export class PatientDashboardComponent implements OnInit, OnDestroy {
@@ -856,14 +1086,23 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   selectedSpecialization: string = '';
   timeSlots: string[] = [];
 
+  // Appointments data
+  appointments: any[] = [];
+  upcomingAppointments: any[] = [];
+  completedAppointments: any[] = [];
+  loadingAppointments = false;
+
   constructor(
     private authService: AuthService,
     private calendarService: CalendarService,
+    private appointmentService: AppointmentService,
     private router: Router,
     private route: ActivatedRoute,
     private breakpointObserver: BreakpointObserver
   ) {
-    this.currentUser = this.authService.getCurrentUser();
+    this.authService.currentUser$.pipe(takeUntil(this.destroyed)).subscribe(user => {
+      this.currentUser = user;
+    });
     
     this.breakpointObserver.observe([Breakpoints.Handset])
       .pipe(takeUntil(this.destroyed))
@@ -884,6 +1123,9 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   getUserAvatar(): string {
+    // Prefer uploaded profile picture URL if available
+    const url = this.currentUser?.profilePictureURL;
+    if (url && typeof url === 'string' && url.trim().length > 0) return url;
     const name = this.currentUser?.name || 'Patient';
     return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981&textColor=ffffff`;
   }
@@ -960,11 +1202,96 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   setActiveSection(section: string): void {
     this.activeSection = section;
+    if (section === 'upcoming') {
+      this.loadAppointments();
+    }
     if (section !== 'book-appointment') {
       this.selectedDoctor = undefined;
       this.selectedDate = undefined;
       this.selectedTimeSlot = undefined;
       this.timeSlots = [];
+    }
+  }
+
+  loadAppointments(): void {
+    const patientId = this.currentUser?.userID || this.currentUser?.userId || this.currentUser?.id;
+    console.log('=== LOADING APPOINTMENTS DEBUG ===');
+    console.log('Current user object:', this.currentUser);
+    console.log('Patient ID for API call:', patientId);
+    
+    if (!patientId) {
+      console.log('No patient ID found, stopping appointment load');
+      this.loadingAppointments = false;
+      return;
+    }
+
+    this.loadingAppointments = true;
+    console.log('Making API call to:', `Appointments/patient/${patientId}`);
+    
+    this.appointmentService.getPatientAppointments(patientId).subscribe({
+      next: (response: any) => {
+        console.log('API Response received:', response);
+        console.log('Response type:', typeof response);
+        console.log('Response structure:', JSON.stringify(response, null, 2));
+        
+        if (response && response.success && response.data) {
+          this.appointments = response.data;
+          console.log('Appointments from response.data:', this.appointments);
+        } else if (response && Array.isArray(response)) {
+          this.appointments = response;
+          console.log('Appointments from direct array:', this.appointments);
+        } else {
+          this.appointments = [];
+          console.log('No appointments found in response');
+        }
+        
+        console.log('Final appointments array:', this.appointments);
+        console.log('Appointments count:', this.appointments.length);
+        
+        this.categorizeAppointments();
+        this.loadingAppointments = false;
+      },
+      error: (error) => {
+        console.error('API Error:', error);
+        console.error('Error details:', error.error);
+        console.error('Error status:', error.status);
+        console.error('Error message:', error.message);
+        
+        this.appointments = [];
+        this.upcomingAppointments = [];
+        this.completedAppointments = [];
+        this.loadingAppointments = false;
+      }
+    });
+  }
+
+  categorizeAppointments(): void {
+    // Show ALL appointments without filtering
+    this.upcomingAppointments = this.appointments;
+    this.completedAppointments = [];
+  }
+
+  getStatusText(appointment: any): string {
+    const queueStatus = appointment.queueStatus || appointment.status;
+    switch (queueStatus) {
+      case 1: return 'Waiting';
+      case 2: return 'In Progress';
+      case 3: return 'Completed';
+      case 4: return 'Cancelled';
+      case 5: return 'No Show';
+      default: return 'Scheduled';
+    }
+  }
+
+  getStatusClass(appointment: any): string {
+    const queueStatus = appointment.queueStatus || appointment.status;
+    switch (queueStatus) {
+      case 1: return 'status-waiting';
+      case 2: return 'status-progress';
+      case 3: return 'status-completed';
+      case 4: return 'status-cancelled';
+      case 5: return 'status-noshow';
+      default: return 'status-scheduled';
     }
   }
 

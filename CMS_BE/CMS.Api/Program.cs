@@ -113,6 +113,7 @@ builder.Services.AddScoped<IInvitationRepository, CMS.Infrastructure.Auth.Reposi
 // Register Services
 builder.Services.AddScoped<IJwtService, CMS.Infrastructure.Auth.Services.JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<CMS.Application.Shared.Interfaces.ICloudinaryService, CMS.Infrastructure.Shared.Services.CloudinaryService>();
 
 // Clinic Repositories
 builder.Services.AddScoped<CMS.Application.Clinic.Interfaces.IDoctorRepository, CMS.Infrastructure.Clinic.Repositories.DoctorRepository>();

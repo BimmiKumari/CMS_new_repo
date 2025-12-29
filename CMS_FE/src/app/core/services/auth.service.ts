@@ -162,4 +162,28 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!localStorage.getItem('accessToken') && !!this.getCurrentUser();
   }
+
+  getProfile(): Observable<ApiResponse<any>> {
+    return this.apiService.get<ApiResponse<any>>('auth/profile');
+  }
+
+  updateProfile(profileData: any): Observable<ApiResponse<any>> {
+    return this.apiService.put<ApiResponse<any>>('auth/profile', profileData);
+  }
+
+  updateProfilePhoto(formData: FormData): Observable<ApiResponse<any>> {
+    return this.apiService.postForm<ApiResponse<any>>('auth/upload-profile-photo', formData)
+      .pipe(
+        tap(response => {
+          if (response.success && response.data?.profilePictureURL) {
+            // Update current user with new profile picture URL
+            const currentUser = this.getCurrentUser();
+            if (currentUser) {
+              currentUser.profilePictureURL = response.data.profilePictureURL;
+              this.setCurrentUser(currentUser);
+            }
+          }
+        })
+      );
+  }
 }
