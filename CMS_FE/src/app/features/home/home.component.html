@@ -1,0 +1,57 @@
+
+<nav class="navbar">
+  <div class="nav-container">
+    <div class="nav-brand">
+      <h2>MediCare CMS</h2>
+    </div>
+    <div class="nav-buttons">
+      <button class="btn btn-outline" (click)="navigateToLogin()">Login</button>
+      <button class="btn btn-primary" (click)="navigateToSignup()">Sign Up</button>
+    </div>
+  </div>
+</nav>
+
+
+<section class="hero">
+  <div class="hero-background"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="services-grid">
+      <div class="service-card" *ngFor="let service of services">
+        <div class="service-icon">
+          <i [class]="service.icon"></i>
+        </div>
+        <h3>{{service.title}}</h3>
+        <p>{{service.description}}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Doctors Section -->
+<section class="doctors-section">
+  <div class="container">
+    <h2 class="section-title">Our Medical Team</h2>
+    <div *ngIf="loading" class="loading-container">
+      <p>Loading doctors...</p>
+    </div>
+    <div *ngIf="!loading && doctors.length === 0" class="no-doctors">
+      <p>No doctors available at the moment.</p>
+    </div>
+    <div class="doctors-grid" *ngIf="!loading && doctors.length > 0">
+      <div class="doctor-card" *ngFor="let doctor of doctors">
+        <div class="doctor-image">
+          <img 
+            [src]="doctor.profilePicture || getDicebarAvatar(getDoctorName(doctor))" 
+            [alt]="getDoctorName(doctor)"
+            (error)="onImageError($event, getDoctorName(doctor))">
+        </div>
+        <div class="doctor-info">
+          <h3>Dr. {{getDoctorName(doctor)}}</h3>
+          <p class="specialization">{{doctor.specialization || 'General Practitioner'}}</p>
+          <p class="experience">{{doctor.email}}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

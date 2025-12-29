@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS.Data.Migrations
 {
     [DbContext(typeof(CmsDbContext))]
-    [Migration("20251219041257_AddUserIdToEntitiesV2")]
-    partial class AddUserIdToEntitiesV2
+    [Migration("20251219074218_InitialAuthMigration")]
+    partial class InitialAuthMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -170,7 +170,8 @@ namespace CMS.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid?>("user_id")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uniqueidentifier")
+                        .HasAnnotation("Relational:JsonPropertyName", "user_id");
 
                     b.HasKey("patient_id");
 

@@ -16,6 +16,27 @@ namespace CMS.Controllers
             _patientService = patientService;
         }
 
+        [HttpGet("by-user/{userId}")]
+        public async Task<IActionResult> GetPatientByUserId(Guid userId)
+        {
+            try
+            {
+                var patients = await _patientService.GetAllPatients();
+                var patient = patients.FirstOrDefault(p => p.user_id == userId);
+                
+                if (patient == null)
+                {
+                    return NotFound(new { success = false, message = "Patient record not found for this user" });
+                }
+                
+                return Ok(new { success = true, data = patient });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Error retrieving patient", error = ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetPatients()
         {

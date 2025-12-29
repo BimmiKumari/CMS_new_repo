@@ -242,6 +242,37 @@ namespace CMS.Application.EMR.Services
             return summaries;
         }
 
+        public async Task<List<EncounterSummaryDto>> GetUserEncountersAsync(Guid userId)
+        {
+            _logger.LogInformation($"Getting encounters for user ID: {userId}");
+            
+            // Find all patient records for this user
+            var patients = await _context.Patients
+                .Where(p => p.user_id == userId)
+                .ToListAsync();
+            
+            _logger.LogInformation($"Found {patients.Count} patient records for user {userId}");
+            
+            if (!patients.Any())
+            {
+                _logger.LogInformation($"No patient records found for user {userId}");
+                return new List<EncounterSummaryDto>();
+            }
+
+            var allEncounters = new List<EncounterSummaryDto>();
+            
+            foreach (var patient in patients)
+            {
+                _logger.LogInformation($"Getting encounters for patient ID: {patient.patient_id}");
+                
+                var patientEncounters = await GetPatientEncountersAsync(patient.patient_id);
+                allEncounters.AddRange(patientEncounters);
+            }
+            
+            _logger.LogInformation($"Returning {allEncounters.Count} total encounters for user {userId}");
+            return allEncounters.OrderByDescending(e => e.EncounterDate).ToList();
+        }
+
         // EMR Component Methods
         public async Task<VitalSignsDto> AddVitalSignsAsync(CreateVitalSignsDto dto)
         {

@@ -148,6 +148,32 @@ namespace CMS.Application.Appointments.Services
             return dtos;
         }
 
+        public async Task<IEnumerable<AppointmentDto>> GetPatientAppointmentsAsync(Guid patientId)
+        {
+            Console.WriteLine($"[SERVICE DEBUG] GetPatientAppointmentsAsync called with patientId: {patientId}");
+            
+            // Try to find appointments by PatientID first, then by user_id as fallback
+            var appointments = await _context.Appointments
+                .Where(a => (a.PatientID == patientId || a.user_id == patientId) && !a.IsDeleted)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+            
+            Console.WriteLine($"[SERVICE DEBUG] Found {appointments.Count} appointments");
+            foreach (var apt in appointments)
+            {
+                Console.WriteLine($"[SERVICE DEBUG] Appointment: ID={apt.AppointmentID}, PatientID={apt.PatientID}, user_id={apt.user_id}, Date={apt.AppointmentDate:yyyy-MM-dd}");
+            }
+            
+            var dtos = new List<AppointmentDto>();
+            foreach (var app in appointments)
+            {
+                dtos.Add(await MapToDto(app));
+            }
+            
+            Console.WriteLine($"[SERVICE DEBUG] Returning {dtos.Count} appointment DTOs");
+            return dtos;
+        }
+
         private async Task<AppointmentDto> MapToDto(Appointment appointment)
         {
             var patient = await _context.Users.FindAsync(appointment.PatientID);

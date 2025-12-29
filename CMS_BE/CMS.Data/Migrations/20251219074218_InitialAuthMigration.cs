@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMS.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class FixPatientSchema : Migration
+    public partial class InitialAuthMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -96,34 +96,6 @@ namespace CMS.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_NotificationTemplates", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Patients",
-                columns: table => new
-                {
-                    patient_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    date_of_birth = table.Column<DateOnly>(type: "date", nullable: false),
-                    sex = table.Column<string>(type: "nvarchar(1)", nullable: false),
-                    country = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    pincode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    city = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    state = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    address = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    marital_status = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    blood_group = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    allergies = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    chief_medical_complaints = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    consulted_before = table.Column<bool>(type: "bit", nullable: false),
-                    doctor_name = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    last_review_date = table.Column<DateOnly>(type: "date", nullable: true),
-                    seeking_followup = table.Column<bool>(type: "bit", nullable: false),
-                    profile_image_path = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    medical_reports_path = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Patients", x => x.patient_id);
                 });
 
             migrationBuilder.CreateTable(
@@ -228,100 +200,6 @@ namespace CMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "EMRRecords",
-                columns: table => new
-                {
-                    EMRRecordID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PatientID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    MedicalRecordNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_EMRRecords", x => x.EMRRecordID);
-                    table.ForeignKey(
-                        name: "FK_EMRRecords_Patients_PatientID",
-                        column: x => x.PatientID,
-                        principalTable: "Patients",
-                        principalColumn: "patient_id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Payments",
-                columns: table => new
-                {
-                    payment_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    razorpay_order_id = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    razorpay_payment_id = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    razorpay_signature = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    original_amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    discount_amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    currency = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    is_followup = table.Column<bool>(type: "bit", nullable: false),
-                    patient_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    description = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    bill_pdf_path = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Payments", x => x.payment_id);
-                    table.ForeignKey(
-                        name: "FK_Payments_Patients_patient_id",
-                        column: x => x.patient_id,
-                        principalTable: "Patients",
-                        principalColumn: "patient_id",
-                        onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Appointments",
-                columns: table => new
-                {
-                    AppointmentID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PatientID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DoctorID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    AppointmentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
-                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    AppointmentType = table.Column<int>(type: "int", nullable: false),
-                    GoogleCalendarEventID = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    ReasonForVisit = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Appointments", x => x.AppointmentID);
-                    table.ForeignKey(
-                        name: "FK_Appointments_Patients_PatientID",
-                        column: x => x.PatientID,
-                        principalTable: "Patients",
-                        principalColumn: "patient_id");
-                    table.ForeignKey(
-                        name: "FK_Appointments_Users_CreatedBy",
-                        column: x => x.CreatedBy,
-                        principalTable: "Users",
-                        principalColumn: "UserID");
-                    table.ForeignKey(
-                        name: "FK_Appointments_Users_DoctorID",
-                        column: x => x.DoctorID,
-                        principalTable: "Users",
-                        principalColumn: "UserID");
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Doctors",
                 columns: table => new
                 {
@@ -371,6 +249,41 @@ namespace CMS.Data.Migrations
                         column: x => x.UserID,
                         principalTable: "Users",
                         principalColumn: "UserID");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Patients",
+                columns: table => new
+                {
+                    patient_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    user_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    date_of_birth = table.Column<DateOnly>(type: "date", nullable: false),
+                    sex = table.Column<string>(type: "nvarchar(1)", nullable: false),
+                    country = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    pincode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    city = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    state = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    address = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    marital_status = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    blood_group = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    allergies = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    chief_medical_complaints = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    consulted_before = table.Column<bool>(type: "bit", nullable: false),
+                    doctor_name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    last_review_date = table.Column<DateOnly>(type: "date", nullable: true),
+                    seeking_followup = table.Column<bool>(type: "bit", nullable: false),
+                    profile_image_path = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    medical_reports_path = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Patients", x => x.patient_id);
+                    table.ForeignKey(
+                        name: "FK_Patients_Users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "Users",
+                        principalColumn: "UserID",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -483,6 +396,164 @@ namespace CMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Appointments",
+                columns: table => new
+                {
+                    AppointmentID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PatientID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    user_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    DoctorID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AppointmentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    AppointmentType = table.Column<int>(type: "int", nullable: false),
+                    GoogleCalendarEventID = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    ReasonForVisit = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Appointments", x => x.AppointmentID);
+                    table.ForeignKey(
+                        name: "FK_Appointments_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "patient_id");
+                    table.ForeignKey(
+                        name: "FK_Appointments_Users_CreatedBy",
+                        column: x => x.CreatedBy,
+                        principalTable: "Users",
+                        principalColumn: "UserID");
+                    table.ForeignKey(
+                        name: "FK_Appointments_Users_DoctorID",
+                        column: x => x.DoctorID,
+                        principalTable: "Users",
+                        principalColumn: "UserID");
+                    table.ForeignKey(
+                        name: "FK_Appointments_Users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "Users",
+                        principalColumn: "UserID");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EMRRecords",
+                columns: table => new
+                {
+                    EMRRecordID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    user_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    PatientID = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    MedicalRecordNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EMRRecords", x => x.EMRRecordID);
+                    table.ForeignKey(
+                        name: "FK_EMRRecords_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "patient_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_EMRRecords_Users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "Users",
+                        principalColumn: "UserID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Payments",
+                columns: table => new
+                {
+                    payment_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    razorpay_order_id = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    razorpay_payment_id = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    razorpay_signature = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    original_amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    discount_amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    currency = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    is_followup = table.Column<bool>(type: "bit", nullable: false),
+                    patient_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    bill_pdf_path = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    created_at = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Payments", x => x.payment_id);
+                    table.ForeignKey(
+                        name: "FK_Payments_Patients_patient_id",
+                        column: x => x.patient_id,
+                        principalTable: "Patients",
+                        principalColumn: "patient_id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientQueues",
+                columns: table => new
+                {
+                    QueueID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AppointmentID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PatientID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    user_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    DoctorID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    QueueZone = table.Column<int>(type: "int", nullable: false),
+                    QueuePosition = table.Column<int>(type: "int", nullable: false),
+                    QueueStatus = table.Column<int>(type: "int", nullable: false),
+                    AppointmentTimeSlot = table.Column<TimeSpan>(type: "time", nullable: false),
+                    AppointmentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CheckedInAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientQueues", x => x.QueueID);
+                    table.ForeignKey(
+                        name: "FK_PatientQueues_Appointments_AppointmentID",
+                        column: x => x.AppointmentID,
+                        principalTable: "Appointments",
+                        principalColumn: "AppointmentID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PatientQueues_Doctors_DoctorID",
+                        column: x => x.DoctorID,
+                        principalTable: "Doctors",
+                        principalColumn: "DoctorID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PatientQueues_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "patient_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PatientQueues_Users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "Users",
+                        principalColumn: "UserID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PatientEncounters",
                 columns: table => new
                 {
@@ -533,50 +604,6 @@ namespace CMS.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_PatientEncounters_Patients_PatientID",
-                        column: x => x.PatientID,
-                        principalTable: "Patients",
-                        principalColumn: "patient_id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PatientQueues",
-                columns: table => new
-                {
-                    QueueID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    AppointmentID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PatientID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DoctorID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    QueueZone = table.Column<int>(type: "int", nullable: false),
-                    QueuePosition = table.Column<int>(type: "int", nullable: false),
-                    QueueStatus = table.Column<int>(type: "int", nullable: false),
-                    AppointmentTimeSlot = table.Column<TimeSpan>(type: "time", nullable: false),
-                    AppointmentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CheckedInAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PatientQueues", x => x.QueueID);
-                    table.ForeignKey(
-                        name: "FK_PatientQueues_Appointments_AppointmentID",
-                        column: x => x.AppointmentID,
-                        principalTable: "Appointments",
-                        principalColumn: "AppointmentID",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_PatientQueues_Doctors_DoctorID",
-                        column: x => x.DoctorID,
-                        principalTable: "Doctors",
-                        principalColumn: "DoctorID",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_PatientQueues_Patients_PatientID",
                         column: x => x.PatientID,
                         principalTable: "Patients",
                         principalColumn: "patient_id",
@@ -810,6 +837,11 @@ namespace CMS.Data.Migrations
                 column: "PatientID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Appointments_user_id",
+                table: "Appointments",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AuditLogs_ActionTimestamp",
                 table: "AuditLogs",
                 column: "ActionTimestamp");
@@ -845,7 +877,15 @@ namespace CMS.Data.Migrations
                 name: "IX_EMRRecords_PatientID",
                 table: "EMRRecords",
                 column: "PatientID",
-                unique: true);
+                unique: true,
+                filter: "[PatientID] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EMRRecords_user_id",
+                table: "EMRRecords",
+                column: "user_id",
+                unique: true,
+                filter: "[user_id] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_LabTests_EncounterID",
@@ -1058,6 +1098,16 @@ namespace CMS.Data.Migrations
                 column: "QueueStatus");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PatientQueues_user_id",
+                table: "PatientQueues",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Patients_user_id",
+                table: "Patients",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Payments_patient_id",
                 table: "Payments",
                 column: "patient_id");
@@ -1193,10 +1243,10 @@ namespace CMS.Data.Migrations
                 name: "EMRRecords");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "Patients");
 
             migrationBuilder.DropTable(
-                name: "Patients");
+                name: "Users");
         }
     }
 }

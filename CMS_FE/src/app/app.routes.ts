@@ -4,7 +4,14 @@ import { RoleGuard } from './core/guards/role.guard';
 import { RoleType } from './shared/models/auth.models';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
+  { 
+    path: '', 
+    loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent) 
+  },
+  {
+    path: 'home',
+    loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent)
+  },
   {
     path: 'auth',
     children: [

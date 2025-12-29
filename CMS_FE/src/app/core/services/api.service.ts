@@ -96,10 +96,12 @@ export class ApiService {
     const normalized = {
       status: error.status,
       message,
-      error: error.error
+      error: error.error,
+      fullError: error // Add full error for debugging
     };
 
     console.error('ApiService HTTP error:', error);
+    console.error('Normalized error:', normalized);
     return throwError(() => normalized);
   }
 

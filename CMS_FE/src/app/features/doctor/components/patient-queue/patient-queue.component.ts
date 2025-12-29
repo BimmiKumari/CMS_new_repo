@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -220,6 +220,42 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         }
     }
 
+    reloadEncounterData(): void {
+        if (!this.selectedPatient) return;
+        
+        // Preserve current form values
+        const currentChiefComplaint = this.chiefComplaint;
+        const currentDiagnosis = this.diagnosis;
+        const currentTreatmentPlan = this.treatmentPlan;
+        
+        const userIdForEMR = this.selectedPatient.patientID;
+
+        this.emrService.getPatientEncounters(userIdForEMR).subscribe({
+            next: (res: any) => {
+                if (res.success) {
+                    const encounters = res.data as EncounterDetail[];
+                    const encounter = encounters.find((e: EncounterDetail) => e.appointmentID === this.selectedPatient!.appointmentID);
+                    
+                    if (encounter) {
+                        this.selectedEncounter = encounter;
+                    }
+
+                    // Update past encounters for history
+                    this.pastEncounters = encounters.filter(e => e.appointmentID !== this.selectedPatient!.appointmentID);
+                    this.loadMedicalHistory(encounters);
+                    
+                    // Restore form values
+                    this.chiefComplaint = currentChiefComplaint;
+                    this.diagnosis = currentDiagnosis;
+                    this.treatmentPlan = currentTreatmentPlan;
+                }
+            },
+            error: (err) => {
+                console.error('Error reloading encounter data:', err);
+            }
+        });
+    }
+
     acceptPatient(patient: QueuePatient): void {
         this.emrService.updateQueueStatus({
             queueID: patient.queueID,
@@ -227,8 +263,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         }).subscribe({
             next: (res: any) => {
                 this.snackBar.open(`${patient.patientName} accepted for consultation`, 'Close', { duration: 3000 });
-                this.loadQueue();
-                this.selectPatient(patient);
+                patient.queueStatus = QueueStatusType.InProgress;
             },
             error: (err: any) => this.snackBar.open('Error accepting patient', 'Close', { duration: 3000 })
         });
@@ -373,7 +408,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             if (result?.success) {
                 this.selectedPatient!.hasPrescription = true;
                 this.snackBar.open('Prescription saved successfully', 'Close', { duration: 3000 });
-                this.loadEncounter(this.selectedPatient!.appointmentID);
+                this.reloadEncounterData();
             }
         });
     }
@@ -491,7 +526,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         dialogRef.afterClosed().subscribe(result => {
             if (result?.success) {
                 this.snackBar.open('Diagnosis added successfully', 'Close', { duration: 3000 });
-                this.loadEncounter(this.selectedPatient!.appointmentID);
+                this.reloadEncounterData();
             }
         });
     }
@@ -544,7 +579,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         dialogRef.afterClosed().subscribe(result => {
             if (result?.success) {
                 this.snackBar.open('Observations added successfully', 'Close', { duration: 3000 });
-                this.loadEncounter(this.selectedPatient!.appointmentID);
+                this.reloadEncounterData();
             }
         });
     }

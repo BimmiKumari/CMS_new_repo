@@ -50,4 +50,16 @@ export class AppointmentService {
     getAvailableTimeSlots(doctorId: string, date: string): Observable<any> {
         return this.api.get<any>(`TimeSlots/available?doctorId=${doctorId}&date=${date}&userRole=2`);
     }
+
+    getPatientAppointments(patientId: string): Observable<any> {
+        return this.api.get<any>(`Appointments/patient/${patientId}`);
+    }
+
+    getAllPatientsFromAppointments(): Observable<any> {
+        return this.api.get<any>('Appointments/patients');
+    }
+
+    getAllAppointments(): Observable<any> {
+        return this.api.get<any>('Appointments');
+    }
 }

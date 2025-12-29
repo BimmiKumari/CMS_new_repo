@@ -1,0 +1,26 @@
+<div class="card p-3">
+  <h5>Create Template</h5>
+  <div class="mb-2">
+    <label>Name</label>
+    <input [(ngModel)]="model.name" class="form-control" />
+  </div>
+  <div class="mb-2">
+    <label>Subject</label>
+    <input [(ngModel)]="model.subject" class="form-control" />
+  </div>
+  <div class="mb-2">
+    <label>Body</label>
+    <textarea rows="6" [(ngModel)]="model.body" class="form-control"></textarea>
+  </div>
+  <div class="mb-2">
+    <label>Variables (comma separated)</label>
+    <input [(ngModel)]="model.variables" class="form-control" />
+  </div>
+  <div class="mb-2">
+    <label>Description</label>
+    <input [(ngModel)]="model.description" class="form-control" />
+  </div>
+  <div class="d-grid">
+    <button class="btn btn-primary" [disabled]="saving" (click)="save()">Create</button>
+  </div>
+</div>

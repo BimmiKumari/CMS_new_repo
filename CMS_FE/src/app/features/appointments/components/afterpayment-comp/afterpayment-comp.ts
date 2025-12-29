@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,21 +14,28 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./afterpayment-comp.css']
 })
 export class AfterpaymentComp implements OnInit {
+  @Input() paymentData: any = null;
   billPath: string = '';
   paymentDetails: any = {};
   
   constructor(private router: Router, private route: ActivatedRoute, private http: HttpClient) {}
 
   ngOnInit() {
-    this.route.queryParams.subscribe(params => {
-      this.billPath = params['billPath'] || '';
-      this.paymentDetails = {
-        amount: params['amount'] || 0,
-        originalAmount: params['originalAmount'] || 0,
-        discountAmount: params['discountAmount'] || 0,
-        isFollowup: params['isFollowup'] === 'true'
-      };
-    });
+    if (this.paymentData) {
+      this.billPath = this.paymentData.billPath || '';
+      this.paymentDetails = this.paymentData;
+    } else {
+      // Fallback to query params for direct navigation
+      this.route.queryParams.subscribe(params => {
+        this.billPath = params['billPath'] || '';
+        this.paymentDetails = {
+          amount: params['amount'] || 0,
+          originalAmount: params['originalAmount'] || 0,
+          discountAmount: params['discountAmount'] || 0,
+          isFollowup: params['isFollowup'] === 'true'
+        };
+      });
+    }
   }
 
   downloadBill() {

@@ -8,6 +8,8 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { Patient } from '../../../../shared/models/Patient.model';
@@ -20,19 +22,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 @Component({
   selector: 'app-patientdetails-comp',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
-    MatRadioModule,
-    MatButtonModule,
-    MatSnackBarModule,
-    MatDialogModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatRadioModule, MatButtonModule, MatIconModule, TextFieldModule, MatSnackBarModule, MatDialogModule],
   templateUrl: './patientdetails-comp.html',
   styleUrls: ['./patientdetails-comp.css'],
 })
@@ -126,9 +116,7 @@ export class PatientdetailsComp implements OnInit {
     return '';
   }
 
-  goBack() {
-    this.router.navigate(['/patient']);
-  }
+
 
   ADD() {
     console.log('ADD method called');
@@ -328,7 +316,10 @@ export class PatientdetailsComp implements OnInit {
 
         this.paymentService.createOrder(paymentRequest).subscribe({
           next: (response) => {
+            console.log('Payment order created successfully:', response);
+            console.log('Response structure:', JSON.stringify(response, null, 2));
             this.paymentService.initiatePayment(response).then((paymentResponse) => {
+              console.log('Payment initiated successfully:', paymentResponse);
               this.paymentService.verifyPayment({
                 razorpayOrderId: response.orderId,
                 razorpayPaymentId: paymentResponse.razorpay_payment_id,
@@ -351,15 +342,17 @@ export class PatientdetailsComp implements OnInit {
                   // Clear session storage
                   sessionStorage.removeItem('pendingAppointment');
 
-                  const billPath = verificationResult.billPath || '';
-                  const queryParams = {
-                    billPath,
-                    amount: paymentRequest.amount,
-                    originalAmount: paymentRequest.originalAmount,
-                    discountAmount: paymentRequest.discountAmount,
-                    isFollowup: paymentRequest.isFollowup
-                  };
-                  setTimeout(() => this.router.navigate(['/afterpayment'], { queryParams }), 100);
+                  // Navigate back to patient dashboard with success state
+                  this.router.navigate(['/patient'], {
+                    queryParams: {
+                      paymentSuccess: 'true',
+                      billPath: verificationResult.billPath || '',
+                      amount: paymentRequest.amount,
+                      originalAmount: paymentRequest.originalAmount,
+                      discountAmount: paymentRequest.discountAmount,
+                      isFollowup: paymentRequest.isFollowup
+                    }
+                  });
                 },
                 error: (error) => {
                   console.error('Payment verification error:', error);
@@ -371,16 +364,20 @@ export class PatientdetailsComp implements OnInit {
                 }
               });
             }).catch((error) => {
-              this.snackBar.open('Payment cancelled or failed', 'Close', {
-                duration: 3000,
+              console.error('Payment initiation error:', error);
+              console.error('Error details:', JSON.stringify(error, null, 2));
+              this.snackBar.open('Payment cancelled or failed: ' + (error.message || 'Unknown error'), 'Close', {
+                duration: 5000,
                 panelClass: ['error-snackbar']
               });
               this.isSubmitting = false;
             });
           },
           error: (error) => {
-            this.snackBar.open('Failed to create payment order', 'Close', {
-              duration: 3000,
+            console.error('Create order error:', error);
+            console.error('Error response:', JSON.stringify(error, null, 2));
+            this.snackBar.open('Failed to create payment order: ' + (error.error?.message || error.message), 'Close', {
+              duration: 5000,
               panelClass: ['error-snackbar']
             });
             this.isSubmitting = false;

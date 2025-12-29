@@ -1,7 +1,9 @@
 using CMS.Application.EMR.DTOs;
 using CMS.Application.EMR.Interfaces;
+using CMS.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -14,13 +16,16 @@ namespace CMS.Api.Controllers.EMR
     {
         private readonly IEncounterService _encounterService;
         private readonly ILogger<EncounterController> _logger;
+        private readonly CmsDbContext _context;
 
         public EncounterController(
             IEncounterService encounterService,
-            ILogger<EncounterController> logger)
+            ILogger<EncounterController> logger,
+            CmsDbContext context)
         {
             _encounterService = encounterService;
             _logger = logger;
+            _context = context;
         }
 
         /// <summary>
@@ -52,6 +57,68 @@ namespace CMS.Api.Controllers.EMR
             }
         }
 
+        [HttpGet("debug/user/{userId}")]
+        public async Task<ActionResult> DebugUserData(Guid userId)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(userId);
+                var patients = await _context.Patients.Where(p => p.user_id == userId).ToListAsync();
+                var allEncounters = new List<object>();
+                
+                foreach (var patient in patients)
+                {
+                    var encounters = await _context.PatientEncounters
+                        .Where(e => e.PatientID == patient.patient_id)
+                        .Select(e => new {
+                            e.EncounterID,
+                            e.PatientID,
+                            e.DoctorID,
+                            e.EncounterDate,
+                            e.ChiefComplaint,
+                            DiagnosesCount = e.Diagnoses.Count(),
+                            PrescriptionsCount = e.Prescriptions.Count()
+                        })
+                        .ToListAsync();
+                    allEncounters.AddRange(encounters);
+                }
+                
+                return Ok(new {
+                    success = true,
+                    data = new {
+                        user = user?.Name,
+                        userId = userId,
+                        patientsCount = patients.Count,
+                        patients = patients.Select(p => new { p.patient_id, p.user_id }),
+                        encountersCount = allEncounters.Count,
+                        encounters = allEncounters
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get all encounters for a user (finds patient by user ID first)
+        /// </summary>
+        [HttpGet("user/{userId}")]
+        public async Task<ActionResult<List<EncounterSummaryDto>>> GetUserEncounters(Guid userId)
+        {
+            try
+            {
+                var encounters = await _encounterService.GetUserEncountersAsync(userId);
+                return Ok(new { success = true, data = encounters, message = "" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error retrieving encounters for user {userId}");
+                return Ok(new { success = true, data = new List<object>(), message = "No encounters found" });
+            }
+        }
+
         /// <summary>
         /// Get all encounters for a patient
         /// </summary>
@@ -80,7 +147,8 @@ namespace CMS.Api.Controllers.EMR
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving encounters for patient {patientId}");
-                return StatusCode(500, new { message = "An error occurred while retrieving encounters" });
+                // Temporary: return exception details to aid local debugging
+                return StatusCode(500, new { message = ex.Message, detail = ex.ToString() });
             }
         }
 

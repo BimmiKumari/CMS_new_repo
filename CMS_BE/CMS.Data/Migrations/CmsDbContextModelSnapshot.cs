@@ -167,7 +167,8 @@ namespace CMS.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid?>("user_id")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uniqueidentifier")
+                        .HasAnnotation("Relational:JsonPropertyName", "user_id");
 
                     b.HasKey("patient_id");
 
