@@ -1,20 +1,27 @@
 using CMS.Application.Appointments.DTOs.Requests;
 using CMS.Application.Appointments.DTOs.Responses;
 using CMS.Application.Appointments.Interfaces;
+using CMS.Application.Notifications.Services;
 using CMS.Data;
 using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Appointments.Enums;
+using CMS.Domain.NotificationModels.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CMS.Application.Appointments.Services
 {
     public class AppointmentService : IAppointmentService
     {
         private readonly CmsDbContext _context;
+        private readonly ITemplateNotificationService _notificationService;
+        private readonly ILogger<AppointmentService> _logger;
 
-        public AppointmentService(CmsDbContext context)
+        public AppointmentService(CmsDbContext context, ITemplateNotificationService notificationService, ILogger<AppointmentService> logger)
         {
             _context = context;
+            _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task<AppointmentDto> CreateAppointmentAsync(CreateAppointmentRequestDto request)
@@ -87,6 +94,9 @@ namespace CMS.Application.Appointments.Services
                 await _context.SaveChangesAsync();
                 Console.WriteLine($"[APPOINTMENT] Appointment created successfully: {appointment.AppointmentID}");
 
+                // Send automatic notifications
+                await SendAppointmentConfirmationNotifications(appointment, patient);
+
                 return await MapToDto(appointment);
             }
             catch (Exception ex)
@@ -94,6 +104,95 @@ namespace CMS.Application.Appointments.Services
                 Console.WriteLine($"[APPOINTMENT ERROR] Failed to create appointment: {ex.Message}");
                 Console.WriteLine($"[APPOINTMENT ERROR] Stack trace: {ex.StackTrace}");
                 throw;
+            }
+        }
+
+        private async Task SendAppointmentConfirmationNotifications(Appointment appointment, Patient patient)
+        {
+            try
+            {
+                // Get user details
+                var user = await _context.Users.FindAsync(patient.user_id);
+                if (user == null)
+                {
+                    _logger.LogWarning("User not found for patient {PatientId}", patient.patient_id);
+                    return;
+                }
+
+                // Get doctor details
+                var doctor = await _context.Doctors
+                    .Include(d => d.User)
+                    .FirstOrDefaultAsync(d => d.DoctorID == appointment.DoctorID);
+
+                // Prepare notification variables
+                var variables = new Dictionary<string, object>
+                {
+                    { "PatientName", user.Name ?? "Patient" },
+                    { "DoctorName", doctor?.User?.Name ?? "Doctor" },
+                    { "AppointmentDate", appointment.AppointmentDate.ToString("MMMM dd, yyyy") },
+                    { "AppointmentTime", appointment.StartTime.ToString(@"hh\:mm") },
+                    { "ReasonForVisit", appointment.ReasonForVisit ?? "General consultation" },
+                    { "AppointmentType", appointment.AppointmentType.ToString() }
+                };
+
+                // Find and send email template
+                if (!string.IsNullOrWhiteSpace(user.Email))
+                {
+                    var emailTemplate = await _context.NotificationTemplates
+                        .FirstOrDefaultAsync(t => t.Name == "Appointment Booking Confirmation" && 
+                                                 t.ChannelType == NotificationChannelType.Email && 
+                                                 t.IsActive);
+                    
+                    if (emailTemplate != null)
+                    {
+                        var emailSent = await _notificationService.SendNotificationAsync(
+                            emailTemplate.Id,
+                            user.Email,
+                            user.Name ?? "Patient",
+                            variables
+                        );
+
+                        _logger.LogInformation(emailSent ? 
+                            "Appointment confirmation email sent to {Email}" : 
+                            "Failed to send appointment confirmation email to {Email}", user.Email);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No email template found for appointment booking confirmation");
+                    }
+                }
+
+                // Find and send SMS template
+                if (!string.IsNullOrWhiteSpace(user.PhoneNumber))
+                {
+                    var smsTemplate = await _context.NotificationTemplates
+                        .FirstOrDefaultAsync(t => t.Name == "Appointment SMS Booking Confirmation" && 
+                                                 t.ChannelType == NotificationChannelType.SMS && 
+                                                 t.IsActive);
+                    
+                    if (smsTemplate != null)
+                    {
+                        var smsSent = await _notificationService.SendNotificationAsync(
+                            smsTemplate.Id,
+                            user.PhoneNumber,
+                            user.Name ?? "Patient",
+                            variables
+                        );
+
+                        _logger.LogInformation(smsSent ? 
+                            "Appointment confirmation SMS sent to {Phone}" : 
+                            "Failed to send appointment confirmation SMS to {Phone}", user.PhoneNumber);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No SMS template found for appointment booking confirmation");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending appointment confirmation notifications for appointment {AppointmentId}", appointment.AppointmentID);
+                // Don't throw - notification failure shouldn't break appointment creation
             }
         }
         
