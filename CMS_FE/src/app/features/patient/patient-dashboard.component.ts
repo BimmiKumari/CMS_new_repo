@@ -207,12 +207,12 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
               </div>
             </div>
 
-            <!-- Upcoming Appointments -->
+            <!-- My Appointments -->
             <div *ngSwitchCase="'upcoming'">
               <div class="appointments-container">
                 <div class="appointments-header">
                   <h1>My Appointments</h1>
-                  <p>View your upcoming and completed appointments</p>
+                  <p>View your scheduled, completed, and follow-up appointments</p>
                 </div>
 
                 <div *ngIf="loadingAppointments" class="loading-state">
@@ -220,20 +220,20 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
                   <p>Loading appointments...</p>
                 </div>
 
-                <div *ngIf="!loadingAppointments" class="appointments-grid">
-                  <!-- All Appointments -->
-                  <div class="appointments-column">
-                    <h2><mat-icon>event</mat-icon> All My Appointments</h2>
-                    <div *ngIf="upcomingAppointments.length === 0" class="no-appointments">
+                <div *ngIf="!loadingAppointments" class="appointments-sections">
+                  <!-- Scheduled Appointments -->
+                  <div class="appointments-section">
+                    <h2><mat-icon>schedule</mat-icon> Scheduled Appointments</h2>
+                    <div *ngIf="scheduledAppointments.length === 0" class="no-appointments">
                       <mat-icon>event_available</mat-icon>
-                      <p>No upcoming appointments</p>
+                      <p>No scheduled appointments</p>
                       <button mat-stroked-button color="primary" (click)="setActiveSection('book-appointment')">
                         Book Appointment
                       </button>
                     </div>
-                    <mat-card *ngFor="let appointment of upcomingAppointments" class="appointment-card upcoming">
+                    <mat-card *ngFor="let appointment of scheduledAppointments" class="appointment-card scheduled">
                       <mat-card-header>
-                        <mat-icon mat-card-avatar class="upcoming-icon">event</mat-icon>
+                        <mat-icon mat-card-avatar class="scheduled-icon">schedule</mat-icon>
                         <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
                         <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
                       </mat-card-header>
@@ -241,7 +241,7 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
                         <div class="appointment-details">
                           <div class="detail-item">
                             <mat-icon>access_time</mat-icon>
-                            <span>{{ appointment.startTime }} - {{ appointment.endTime }}</span>
+                            <span>{{ formatTime(appointment.startTime) }} - {{ formatTime(appointment.endTime) }}</span>
                           </div>
                           <div class="detail-item">
                             <mat-icon>info</mat-icon>
@@ -256,8 +256,8 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
                     </mat-card>
                   </div>
 
-                  <!-- Hidden Completed Section -->
-                  <div class="appointments-column" style="display: none;">
+                  <!-- Completed Appointments -->
+                  <div class="appointments-section">
                     <h2><mat-icon>check_circle</mat-icon> Completed Appointments</h2>
                     <div *ngIf="completedAppointments.length === 0" class="no-appointments">
                       <mat-icon>history</mat-icon>
@@ -273,7 +273,39 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
                         <div class="appointment-details">
                           <div class="detail-item">
                             <mat-icon>access_time</mat-icon>
-                            <span>{{ appointment.startTime }} - {{ appointment.endTime }}</span>
+                            <span>{{ formatTime(appointment.startTime) }} - {{ formatTime(appointment.endTime) }}</span>
+                          </div>
+                          <div class="detail-item">
+                            <mat-icon>info</mat-icon>
+                            <span class="status-badge" [ngClass]="getStatusClass(appointment)">{{ getStatusText(appointment) }}</span>
+                          </div>
+                          <div class="detail-item" *ngIf="appointment.reasonForVisit">
+                            <mat-icon>description</mat-icon>
+                            <span>{{ appointment.reasonForVisit }}</span>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  </div>
+
+                  <!-- Follow-up Appointments -->
+                  <div class="appointments-section">
+                    <h2><mat-icon>refresh</mat-icon> Follow-up Appointments</h2>
+                    <div *ngIf="followUpAppointments.length === 0" class="no-appointments">
+                      <mat-icon>refresh</mat-icon>
+                      <p>No follow-up appointments</p>
+                    </div>
+                    <mat-card *ngFor="let appointment of followUpAppointments" class="appointment-card followup">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="followup-icon">refresh</mat-icon>
+                        <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
+                        <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="appointment-details">
+                          <div class="detail-item">
+                            <mat-icon>access_time</mat-icon>
+                            <span>{{ formatTime(appointment.startTime) }} - {{ formatTime(appointment.endTime) }}</span>
                           </div>
                           <div class="detail-item">
                             <mat-icon>info</mat-icon>
@@ -934,13 +966,20 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
       font-size: 1rem;
     }
     
-    .appointments-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    .appointments-sections {
+      display: flex;
+      flex-direction: column;
       gap: 2rem;
     }
     
-    .appointments-column h2 {
+    .appointments-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .appointments-section h2 {
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -948,6 +987,8 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
       font-weight: 600;
       color: #1f2937;
       margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #f3f4f6;
     }
     
     .appointment-card {
@@ -961,21 +1002,30 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     }
     
-    .appointment-card.upcoming {
-      border-left: 4px solid #10b981;
+    .appointment-card.scheduled {
+      border-left: 4px solid #3b82f6;
     }
     
     .appointment-card.completed {
-      border-left: 4px solid #6b7280;
+      border-left: 4px solid #10b981;
     }
     
-    .upcoming-icon {
-      background: #10b981 !important;
+    .appointment-card.followup {
+      border-left: 4px solid #f59e0b;
+    }
+    
+    .scheduled-icon {
+      background: #3b82f6 !important;
       color: white !important;
     }
     
     .completed-icon {
-      background: #6b7280 !important;
+      background: #10b981 !important;
+      color: white !important;
+    }
+    
+    .followup-icon {
+      background: #f59e0b !important;
       color: white !important;
     }
     
@@ -1054,9 +1104,12 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
     }
     
     @media (max-width: 768px) {
-      .appointments-grid {
-        grid-template-columns: 1fr;
+      .appointments-sections {
         gap: 1rem;
+      }
+      
+      .appointments-section {
+        padding: 1rem;
       }
       
       .appointments-container {
@@ -1088,8 +1141,9 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   // Appointments data
   appointments: any[] = [];
-  upcomingAppointments: any[] = [];
+  scheduledAppointments: any[] = [];
   completedAppointments: any[] = [];
+  followUpAppointments: any[] = [];
   loadingAppointments = false;
 
   constructor(
@@ -1102,6 +1156,9 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   ) {
     this.authService.currentUser$.pipe(takeUntil(this.destroyed)).subscribe(user => {
       this.currentUser = user;
+      if (user && this.activeSection === 'upcoming') {
+        this.loadAppointments();
+      }
     });
     
     this.breakpointObserver.observe([Breakpoints.Handset])
@@ -1132,6 +1189,11 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadDoctors();
+    
+    // Load appointments if user is already available
+    if (this.currentUser) {
+      this.loadAppointments();
+    }
     
     // Check for payment success from query params
     this.route.queryParams.subscribe(params => {
@@ -1214,66 +1276,66 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadAppointments(): void {
-    const patientId = this.currentUser?.userID || this.currentUser?.userId || this.currentUser?.id;
-    console.log('=== LOADING APPOINTMENTS DEBUG ===');
-    console.log('Current user object:', this.currentUser);
-    console.log('Patient ID for API call:', patientId);
+    const patientId = this.currentUser?.id || this.currentUser?.userID;
     
     if (!patientId) {
-      console.log('No patient ID found, stopping appointment load');
       this.loadingAppointments = false;
       return;
     }
 
     this.loadingAppointments = true;
-    console.log('Making API call to:', `Appointments/patient/${patientId}`);
     
     this.appointmentService.getPatientAppointments(patientId).subscribe({
       next: (response: any) => {
-        console.log('API Response received:', response);
-        console.log('Response type:', typeof response);
-        console.log('Response structure:', JSON.stringify(response, null, 2));
-        
         if (response && response.success && response.data) {
           this.appointments = response.data;
-          console.log('Appointments from response.data:', this.appointments);
         } else if (response && Array.isArray(response)) {
           this.appointments = response;
-          console.log('Appointments from direct array:', this.appointments);
         } else {
           this.appointments = [];
-          console.log('No appointments found in response');
         }
-        
-        console.log('Final appointments array:', this.appointments);
-        console.log('Appointments count:', this.appointments.length);
         
         this.categorizeAppointments();
         this.loadingAppointments = false;
       },
       error: (error) => {
-        console.error('API Error:', error);
-        console.error('Error details:', error.error);
-        console.error('Error status:', error.status);
-        console.error('Error message:', error.message);
-        
         this.appointments = [];
-        this.upcomingAppointments = [];
+        this.scheduledAppointments = [];
         this.completedAppointments = [];
+        this.followUpAppointments = [];
         this.loadingAppointments = false;
       }
     });
   }
 
   categorizeAppointments(): void {
-    // Show ALL appointments without filtering
-    this.upcomingAppointments = this.appointments;
-    this.completedAppointments = [];
+    const now = new Date();
+    
+    this.scheduledAppointments = this.appointments.filter(apt => {
+      const status = apt.status;
+      // Include appointments with "Scheduled" status (string) or status 1 (number) and not completed
+      return (status === "Scheduled" || status === 1) && status !== "Completed" && status !== 4;
+    });
+    
+    this.completedAppointments = this.appointments.filter(apt => {
+      const status = apt.status;
+      // Include ALL appointments with "Completed" status (string) or status 4 (number), regardless of type
+      return status === "Completed" || status === 4;
+    });
+    
+    this.followUpAppointments = this.appointments.filter(apt => {
+      const status = apt.status;
+      // Only include follow-up appointments that are NOT completed
+      return apt.appointmentType === "FollowUp" && status !== "Completed" && status !== 4;
+    });
   }
 
   getStatusText(appointment: any): string {
-    const queueStatus = appointment.queueStatus || appointment.status;
-    switch (queueStatus) {
+    const status = appointment.status;
+    if (typeof status === 'string') {
+      return status;
+    }
+    switch (status) {
       case 1: return 'Waiting';
       case 2: return 'In Progress';
       case 3: return 'Completed';
@@ -1284,8 +1346,18 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   getStatusClass(appointment: any): string {
-    const queueStatus = appointment.queueStatus || appointment.status;
-    switch (queueStatus) {
+    const status = appointment.status;
+    if (typeof status === 'string') {
+      switch (status.toLowerCase()) {
+        case 'waiting': return 'status-waiting';
+        case 'in progress': return 'status-progress';
+        case 'completed': return 'status-completed';
+        case 'cancelled': return 'status-cancelled';
+        case 'no show': return 'status-noshow';
+        default: return 'status-scheduled';
+      }
+    }
+    switch (status) {
       case 1: return 'status-waiting';
       case 2: return 'status-progress';
       case 3: return 'status-completed';
@@ -1313,7 +1385,10 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   onProceed() {
     if (this.isFormValid()) {
-      const formattedDate = this.selectedDate!.toISOString().split('T')[0];
+      const year = this.selectedDate!.getFullYear();
+      const month = (this.selectedDate!.getMonth() + 1).toString().padStart(2, '0');
+      const day = this.selectedDate!.getDate().toString().padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
 
       // Extract just the start time (before the dash) for easier matching
       const startTimeOnly = this.selectedTimeSlot!.split(' - ')[0];
@@ -1322,7 +1397,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
       const appointmentData = {
         doctorId: this.selectedDoctor!.id,
         doctorName: this.selectedDoctor!.name,
-        patientId: this.currentUser?.userId || this.currentUser?.id || this.currentUser?.userID,
+        patientId: this.currentUser?.id || this.currentUser?.userID,
         appointmentDate: formattedDate,
         startTime: startTimeOnly,  // Store only start time
         fullTimeSlot: this.selectedTimeSlot!,  // Store full slot for display
@@ -1330,9 +1405,6 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
         status: 'Scheduled',
         notes: 'Booked via portal'
       };
-      
-      console.log('Storing appointment data:', appointmentData);
-      console.log('Current user object:', this.currentUser);
 
       sessionStorage.setItem('pendingAppointment', JSON.stringify(appointmentData));
 
@@ -1355,6 +1427,22 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   isFormValid(): boolean {
     return !!(this.selectedDoctor && this.selectedDate && this.selectedTimeSlot);
+  }
+
+  formatTime(timeSpan: string): string {
+    try {
+      if (timeSpan.includes(':')) {
+        const parts = timeSpan.split(':');
+        const hours = parseInt(parts[0]);
+        const minutes = parts[1];
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+        return `${displayHours}:${minutes} ${period}`;
+      }
+      return timeSpan;
+    } catch {
+      return timeSpan;
+    }
   }
 
   logout(): void {

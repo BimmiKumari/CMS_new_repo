@@ -28,12 +28,17 @@ namespace CMS.Application.EMR.Services
 
         public async Task<DoctorQueueResponseDto> GetDoctorQueueAsync(Guid doctorId, DateTime date)
         {
+            Console.WriteLine($"[QUEUE DEBUG] GetDoctorQueueAsync called with doctorId: {doctorId}, date: {date:yyyy-MM-dd}");
+            
             var queues = await _queueRepository.GetQueueByDoctorAsync(doctorId, date);
+            Console.WriteLine($"[QUEUE DEBUG] Found {queues.Count} queue entries");
 
             var response = new DoctorQueueResponseDto();
 
             foreach (var queue in queues)
             {
+                Console.WriteLine($"[QUEUE DEBUG] Processing queue: {queue.QueueID}, AppointmentID: {queue.AppointmentID}, QueueZone: {queue.QueueZone}");
+                
                 var patient = await _context.Patients.FirstOrDefaultAsync(p => p.patient_id == queue.PatientID);
                 
                 if (patient == null) 
@@ -44,6 +49,8 @@ namespace CMS.Application.EMR.Services
                 
                 // Get user name through appointment -> user relationship
                 var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == queue.AppointmentID);
+                Console.WriteLine($"[QUEUE DEBUG] Appointment found: {appointment != null}, AppointmentType: {appointment?.AppointmentType}");
+                
                 var user = appointment != null && appointment.user_id.HasValue 
                     ? await _context.Users.FirstOrDefaultAsync(u => u.UserID == appointment.user_id.Value) 
                     : null;
@@ -53,6 +60,7 @@ namespace CMS.Application.EMR.Services
 
                 // Use AppointmentType from Appointment table if available, else fallback to QueueZone
                 var appointmentType = queue.Appointment?.AppointmentType ?? queue.QueueZone;
+                Console.WriteLine($"[QUEUE DEBUG] Final appointmentType: {appointmentType}, IsFollowUp: {appointmentType == AppointmentType.FollowUp}");
 
                 // Get previous encounter for follow-up patients
                 Guid? previousEncounterId = null;
@@ -91,16 +99,20 @@ namespace CMS.Application.EMR.Services
                 };
 
                 // Categorize by queue zone
+                Console.WriteLine($"[QUEUE DEBUG] Categorizing patient {patientName}: appointmentType={appointmentType}");
                 if (appointmentType == AppointmentType.FollowUp)
                 {
+                    Console.WriteLine($"[QUEUE DEBUG] Adding {patientName} to FollowUpPatients");
                     response.FollowUpPatients.Add(queuePatient);
                 }
                 else if (appointmentType == AppointmentType.Emergency)
                 {
+                    Console.WriteLine($"[QUEUE DEBUG] Adding {patientName} to EmergencyCases");
                     response.EmergencyCases.Add(queuePatient);
                 }
                 else
                 {
+                    Console.WriteLine($"[QUEUE DEBUG] Adding {patientName} to RegularPatients");
                     response.RegularPatients.Add(queuePatient);
                 }
 
@@ -119,6 +131,7 @@ namespace CMS.Application.EMR.Services
                 }
             }
 
+            Console.WriteLine($"[QUEUE DEBUG] Final response: Regular={response.RegularPatients.Count}, FollowUp={response.FollowUpPatients.Count}, Emergency={response.EmergencyCases.Count}");
             return response;
         }
 

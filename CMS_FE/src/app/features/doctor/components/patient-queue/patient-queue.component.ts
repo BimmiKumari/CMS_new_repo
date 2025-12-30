@@ -13,19 +13,21 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { EmrService } from '../../../../core/services/emr.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { AppointmentService } from '../../../../core/services/appointment.service';
 import { PrescriptionFormComponent } from '../prescription-form/prescription-form.component';
 import { LabTestFormComponent } from '../lab-test-form/lab-test-form.component';
 import { DiagnosisFormComponent } from '../diagnosis-form/diagnosis-form.component';
 import { ObservationFormComponent } from '../observation-form/observation-form.component';
 import { FollowupScheduleComponent } from '../followup-schedule/followup-schedule.component';
 import { EncounterDetailsDialogComponent } from '../encounter-details-dialog/encounter-details-dialog.component';
-import { AppointmentService } from '../../../../core/services/appointment.service';
+import { EmrHistoryDialogComponent } from '../emr-history-dialog/emr-history-dialog.component';
 import {
     DoctorQueueResponse,
     QueuePatient,
     EncounterDetail,
     QueueStatusType,
-    UpdateEncounterDto
+    UpdateEncounterDto,
+    CreateTreatmentPlanDto
 } from '../../../emr/models/emr.models';
 import { interval, Subscription } from 'rxjs';
 
@@ -106,19 +108,42 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     loadQueue(): void {
+        console.log('🔄 Loading queue for doctor:', this.doctorId);
+        
+        // First try to sync appointments to queue
+        this.emrService.syncAppointmentsToQueue(this.doctorId).subscribe({
+            next: (syncRes) => {
+                console.log('🔄 Sync result:', syncRes);
+                // After sync, load the queue
+                this.loadQueueData();
+            },
+            error: (syncErr) => {
+                console.warn('⚠️ Sync failed, loading queue anyway:', syncErr);
+                // Even if sync fails, try to load existing queue
+                this.loadQueueData();
+            }
+        });
+    }
+    
+    loadQueueData(): void {
         this.emrService.getDoctorQueue(this.doctorId).subscribe({
             next: (res: any) => {
-                console.log('Queue API response:', res);
+                console.log('📋 Queue API response:', res);
 
                 // Extract data from response
                 const data = res.data || res;
                 this.regularPatients = data.regularPatients || [];
                 this.followUpPatients = data.followUpPatients || [];
 
-                console.log('Regular patients:', this.regularPatients.length);
-                console.log('Follow-up patients:', this.followUpPatients.length);
-                console.log('Sample regular patient:', this.regularPatients[0]);
-                console.log('Sample follow-up patient:', this.followUpPatients[0]);
+                console.log('👥 Regular patients:', this.regularPatients.length);
+                console.log('🔄 Follow-up patients:', this.followUpPatients.length);
+                console.log('📝 Sample regular patient:', this.regularPatients[0]);
+                console.log('📝 Sample follow-up patient:', this.followUpPatients[0]);
+                
+                // Debug: Check if we have any appointments at all
+                if (this.regularPatients.length === 0 && this.followUpPatients.length === 0) {
+                    console.log('⚠️ No patients found in queue after sync');
+                }
 
 
 
@@ -134,8 +159,24 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
                 }
             },
             error: (err: any) => {
-                console.error('Error loading queue:', err);
+                console.error('❌ Error loading queue:', err);
+                console.error('❌ Error details:', err.error);
                 this.snackBar.open('Failed to load patient queue. Click refresh to try again.', 'Close', { duration: 5000 });
+            }
+        });
+    }
+    
+    syncQueue(): void {
+        console.log('🔄 Manually syncing queue for doctor:', this.doctorId);
+        this.emrService.syncAppointmentsToQueue(this.doctorId).subscribe({
+            next: (res) => {
+                console.log('✅ Sync successful:', res);
+                this.snackBar.open('Queue synced successfully', 'Close', { duration: 3000 });
+                this.loadQueueData();
+            },
+            error: (err) => {
+                console.error('❌ Sync failed:', err);
+                this.snackBar.open('Failed to sync queue', 'Close', { duration: 3000 });
             }
         });
     }
@@ -164,8 +205,8 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
                     if (encounter) {
                         this.selectedEncounter = encounter;
                         this.chiefComplaint = encounter.chiefComplaint || '';
-                        this.diagnosis = encounter.diagnoses?.[0]?.description || '';
-                        this.treatmentPlan = encounter.treatmentPlans?.[0]?.description || '';
+                        this.diagnosis = encounter.diagnoses?.[0]?.description || encounter.assessmentAndPlan || '';
+                        this.treatmentPlan = encounter.treatmentPlans?.[0]?.planDescription || '';
                     } else {
                         this.selectedEncounter = null;
                     }
@@ -186,6 +227,8 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     loadMedicalHistory(encounters: EncounterDetail[]): void {
+        console.log('Loading medical history with encounters:', encounters);
+        
         // Get previous conditions from past diagnoses
         const conditions = encounters
             .flatMap(e => e.diagnoses || [])
@@ -218,6 +261,8 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         } else {
             this.lastVisitDate = 'First visit';
         }
+        
+        console.log('Past encounters set to:', this.pastEncounters.length);
     }
 
     reloadEncounterData(): void {
@@ -275,16 +320,27 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
 
     rejectPatient(patient: QueuePatient): void {
         if (confirm(`Are you sure you want to reject ${patient.patientName}?`)) {
-            this.emrService.removeFromQueue(patient.queueID).subscribe({
-                next: (res: any) => {
-                    this.snackBar.open(`${patient.patientName} has been removed from queue`, 'Close', { duration: 3000 });
-                    this.loadQueue();
-                    if (this.selectedPatient?.queueID === patient.queueID) {
-                        this.selectedPatient = null;
-                        this.selectedEncounter = null;
-                    }
+            // Update appointment status to Cancelled (status 4 = Cancelled)
+            this.appointmentService.updateAppointmentStatus(patient.appointmentID, 4).subscribe({
+                next: () => {
+                    console.log('Appointment status updated to Cancelled');
+                    // Remove patient from queue permanently
+                    this.emrService.removeFromQueue(patient.queueID).subscribe({
+                        next: (res: any) => {
+                            this.snackBar.open(`${patient.patientName} has been permanently removed from queue`, 'Close', { duration: 3000 });
+                            this.loadQueue();
+                            if (this.selectedPatient?.queueID === patient.queueID) {
+                                this.selectedPatient = null;
+                                this.selectedEncounter = null;
+                            }
+                        },
+                        error: (err: any) => this.snackBar.open('Error rejecting patient', 'Close', { duration: 3000 })
+                    });
                 },
-                error: (err: any) => this.snackBar.open('Error rejecting patient', 'Close', { duration: 3000 })
+                error: (err: any) => {
+                    console.error('Error updating appointment status:', err);
+                    this.snackBar.open('Error updating appointment status', 'Close', { duration: 3000 });
+                }
             });
         }
     }
@@ -339,14 +395,21 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             next: (res: any) => {
                 if (res.success) {
                     if (this.treatmentPlan) {
-                        this.emrService.addTreatmentPlan({
+                        const treatmentPlanDto: CreateTreatmentPlanDto = {
                             encounterID: this.selectedEncounter!.encounterID,
-                            description: this.treatmentPlan,
-                            startDate: new Date().toISOString()
-                        }).subscribe();
+                            planDescription: this.treatmentPlan,
+                            createdBy: this.doctorId
+                        };
+                        this.emrService.addTreatmentPlan(treatmentPlanDto).subscribe();
                     }
 
                     this.snackBar.open('EHR updated successfully', 'Close', { duration: 3000 });
+
+                    // Update appointment status to Completed (status 4 = Completed)
+                    this.appointmentService.updateAppointmentStatus(this.selectedPatient!.appointmentID, 4).subscribe({
+                        next: () => console.log('Appointment status updated to Completed'),
+                        error: (err: any) => console.error('Error updating appointment status:', err)
+                    });
 
                     this.emrService.updateQueueStatus({
                         queueID: this.selectedPatient!.queueID,
@@ -473,6 +536,11 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             queueID: this.selectedPatient!.queueID,
             newStatus: QueueStatusType.Completed
         }).subscribe(() => {
+            // Update appointment status to Completed (status 4 = Completed)
+            this.appointmentService.updateAppointmentStatus(this.selectedPatient!.appointmentID, 4).subscribe({
+                next: () => console.log('Appointment status updated to Completed'),
+                error: (err) => console.error('Error updating appointment status:', err)
+            });
             this.loadQueue();
             this.snackBar.open('Patient marked for follow-up after lab results', 'Close', { duration: 3000 });
         });
@@ -593,7 +661,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         const dialogRef = this.dialog.open(FollowupScheduleComponent, {
             width: '600px',
             data: {
-                patientID: this.selectedPatient.patientID,
+                patientID: this.selectedPatient.user_id || this.selectedPatient.patientID,
                 doctorID: this.doctorId,
                 patientName: this.selectedPatient.patientName
             }
@@ -601,6 +669,12 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
 
         dialogRef.afterClosed().subscribe(result => {
             if (result?.success) {
+                // Update appointment status to Completed (status 4 = Completed)
+                this.appointmentService.updateAppointmentStatus(this.selectedPatient!.appointmentID, 4).subscribe({
+                    next: () => console.log('Appointment status updated to Completed'),
+                    error: (err: any) => console.error('Error updating appointment status:', err)
+                });
+                
                 // Remove patient from current queue
                 this.emrService.removeFromQueue(this.selectedPatient!.queueID).subscribe({
                     next: () => {
@@ -625,17 +699,27 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             return;
         }
 
-        // Remove patient from queue completely
-        this.emrService.removeFromQueue(this.selectedPatient.queueID).subscribe({
+        // Update appointment status to Completed (status 4 = Completed)
+        this.appointmentService.updateAppointmentStatus(this.selectedPatient.appointmentID, 4).subscribe({
             next: () => {
-                this.snackBar.open(`${this.selectedPatient!.patientName} consultation completed and discharged successfully`, 'Close', { duration: 3000 });
-                this.loadQueue();
-                this.selectedPatient = null;
-                this.selectedEncounter = null;
+                console.log('Appointment status updated to Completed');
+                // Remove patient from queue completely
+                this.emrService.removeFromQueue(this.selectedPatient!.queueID).subscribe({
+                    next: () => {
+                        this.snackBar.open(`${this.selectedPatient!.patientName} consultation completed and discharged successfully`, 'Close', { duration: 3000 });
+                        this.loadQueue();
+                        this.selectedPatient = null;
+                        this.selectedEncounter = null;
+                    },
+                    error: (error) => {
+                        console.error('Error completing consultation:', error);
+                        this.snackBar.open('Error completing consultation', 'Close', { duration: 3000 });
+                    }
+                });
             },
-            error: (error) => {
-                console.error('Error completing consultation:', error);
-                this.snackBar.open('Error completing consultation', 'Close', { duration: 3000 });
+            error: (err: any) => {
+                console.error('Error updating appointment status:', err);
+                this.snackBar.open('Error updating appointment status', 'Close', { duration: 3000 });
             }
         });
     }
@@ -684,6 +768,100 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         this.dialog.open(EncounterDetailsDialogComponent, {
             width: '900px',
             data: encounter
+        });
+    }
+
+    viewAllHistory(): void {
+        if (!this.selectedPatient || this.pastEncounters.length === 0) return;
+        
+        this.dialog.open(EmrHistoryDialogComponent, {
+            width: '1400px',
+            maxHeight: '80vh',
+            data: {
+                encounters: this.pastEncounters,
+                patientName: this.selectedPatient.patientName
+            }
+        });
+    }
+
+    saveVisitNotes(): void {
+        if (!this.selectedPatient) {
+            this.snackBar.open('Please select a patient first', 'Close', { duration: 3000 });
+            return;
+        }
+
+        if (!this.selectedEncounter) {
+            this.createEncounterAndSaveNotes();
+        } else {
+            this.performSaveNotes();
+        }
+    }
+
+    createEncounterAndSaveNotes(): void {
+        const encounterDto = {
+            patientID: this.selectedPatient!.patientID,
+            doctorID: this.doctorId,
+            appointmentID: this.selectedPatient!.appointmentID,
+            encounterType: this.selectedPatient!.isFollowUp ? 1 : 0,
+            chiefComplaint: this.chiefComplaint || this.selectedPatient!.chiefComplaint || ''
+        };
+
+        this.emrService.createEncounter(encounterDto).subscribe({
+            next: (response: any) => {
+                console.log('Encounter created successfully:', response);
+                // The response should be the encounter object directly
+                this.selectedEncounter = response;
+                this.performSaveNotes();
+            },
+            error: (error) => {
+                console.error('Error creating encounter:', error);
+                this.snackBar.open('Error creating encounter', 'Close', { duration: 3000 });
+            }
+        });
+    }
+
+    performSaveNotes(): void {
+        if (!this.selectedEncounter) return;
+
+        const updateDto: UpdateEncounterDto = {
+            encounterID: this.selectedEncounter.encounterID,
+            chiefComplaint: this.chiefComplaint,
+            assessmentAndPlan: this.diagnosis
+        };
+
+        this.emrService.updateEncounter(updateDto).subscribe({
+            next: (updatedEncounter: any) => {
+                console.log('Encounter updated successfully:', updatedEncounter);
+                
+                // Save treatment plan if provided
+                if (this.treatmentPlan) {
+                    const treatmentPlanDto: CreateTreatmentPlanDto = {
+                        encounterID: this.selectedEncounter!.encounterID,
+                        planDescription: this.treatmentPlan,
+                        createdBy: this.doctorId
+                    };
+                    
+                    this.emrService.addTreatmentPlan(treatmentPlanDto).subscribe({
+                        next: (treatmentRes) => {
+                            console.log('Treatment plan saved successfully:', treatmentRes);
+                            this.snackBar.open('Visit notes and treatment plan saved successfully', 'Close', { duration: 3000 });
+                            this.reloadEncounterData();
+                        },
+                        error: (treatmentErr) => {
+                            console.error('Error saving treatment plan:', treatmentErr);
+                            this.snackBar.open('Visit notes saved, but error saving treatment plan', 'Close', { duration: 3000 });
+                            this.reloadEncounterData();
+                        }
+                    });
+                } else {
+                    this.snackBar.open('Visit notes saved successfully', 'Close', { duration: 3000 });
+                    this.reloadEncounterData();
+                }
+            },
+            error: (error) => {
+                console.error('Error saving visit notes:', error);
+                this.snackBar.open('Error saving visit notes', 'Close', { duration: 3000 });
+            }
         });
     }
 }

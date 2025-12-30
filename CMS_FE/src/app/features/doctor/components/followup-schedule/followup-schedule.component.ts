@@ -11,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { AppointmentService } from '../../../../core/services/appointment.service';
+import { ApiService } from '../../../../core/services/api.service';
 
 interface TimeSlot {
   time: string;
@@ -135,7 +136,8 @@ export class FollowupScheduleComponent implements OnInit {
   constructor(
     private dialogRef: MatDialogRef<FollowupScheduleComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
-    private appointmentService: AppointmentService
+    private appointmentService: AppointmentService,
+    private apiService: ApiService
   ) {}
 
   ngOnInit(): void {
@@ -185,10 +187,14 @@ export class FollowupScheduleComponent implements OnInit {
       const endHour = endMinute >= 60 ? startHour + 1 : startHour;
       const finalEndMinute = endMinute >= 60 ? endMinute - 60 : endMinute;
       
+      const year = this.selectedDate.getFullYear();
+      const month = (this.selectedDate.getMonth() + 1).toString().padStart(2, '0');
+      const day = this.selectedDate.getDate().toString().padStart(2, '0');
+      
       const appointmentDto = {
         patientID: this.data.patientID,
         doctorID: this.data.doctorID,
-        appointmentDate: this.selectedDate.toISOString().split('T')[0],
+        appointmentDate: `${year}-${month}-${day}`,
         startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`,
         endTime: `${endHour.toString().padStart(2, '0')}:${finalEndMinute.toString().padStart(2, '0')}:00`,
         appointmentType: 2,
@@ -200,12 +206,14 @@ export class FollowupScheduleComponent implements OnInit {
       this.appointmentService.createFollowUpAppointment(appointmentDto).subscribe({
         next: (response) => {
           console.log('Appointment created:', response);
-          this.dialogRef.close({ 
-            success: true, 
-            appointment: response,
-            date: this.selectedDate,
-            time: this.selectedTimeSlot
-          });
+          
+          // Add the appointment to the queue
+          if (response.success && response.data?.appointmentID) {
+            this.addToQueue(response.data.appointmentID);
+          } else {
+            console.error('Unexpected response structure:', response);
+            this.dialogRef.close({ success: false, error: 'Unexpected response structure' });
+          }
         },
         error: (error) => {
           console.error('Error creating appointment:', error);
@@ -217,5 +225,29 @@ export class FollowupScheduleComponent implements OnInit {
 
   onCancel(): void {
     this.dialogRef.close({ success: false });
+  }
+
+  addToQueue(appointmentId: string): void {
+    this.apiService.post(`PatientQueue/add/${appointmentId}`, {}).subscribe({
+      next: (queueResponse) => {
+        console.log('Added to queue:', queueResponse);
+        this.dialogRef.close({ 
+          success: true, 
+          appointment: { appointmentID: appointmentId },
+          date: this.selectedDate,
+          time: this.selectedTimeSlot
+        });
+      },
+      error: (queueError) => {
+        console.error('Error adding to queue:', queueError);
+        // Still close as success since appointment was created
+        this.dialogRef.close({ 
+          success: true, 
+          appointment: { appointmentID: appointmentId },
+          date: this.selectedDate,
+          time: this.selectedTimeSlot
+        });
+      }
+    });
   }
 }

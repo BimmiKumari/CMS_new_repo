@@ -4,8 +4,6 @@ using CMS.Application.Appointments.Interfaces;
 using CMS.Data;
 using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Appointments.Enums;
-using CMS.Domain.Clinic.Entities;
-using CMS.Domain.Clinic.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMS.Application.Appointments.Services
@@ -21,94 +19,82 @@ namespace CMS.Application.Appointments.Services
 
         public async Task<AppointmentDto> CreateAppointmentAsync(CreateAppointmentRequestDto request)
         {
-            var appointment = new Appointment
+            try
             {
-                AppointmentID = Guid.NewGuid(),
-                PatientID = request.PatientID,
-                user_id = request.user_id, // Store user_id for easier querying
-                DoctorID = request.DoctorID,
-                AppointmentDate = request.AppointmentDate,
-                StartTime = request.StartTime,
-                EndTime = request.EndTime,
-                AppointmentType = request.AppointmentType,
-                ReasonForVisit = request.ReasonForVisit,
-                Status = AppointmentStatus.Pending,
-                CreatedBy = null,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Appointments.Add(appointment);
-            await _context.SaveChangesAsync();
-
-            // Auto-add follow-up appointments to queue
-            if (request.AppointmentType == AppointmentType.FollowUp)
-            {
-                try
+                Console.WriteLine($"[APPOINTMENT] Creating appointment: PatientID={request.PatientID}, DoctorID={request.DoctorID}, Type={request.AppointmentType}");
+                Console.WriteLine($"[APPOINTMENT] Date={request.AppointmentDate:yyyy-MM-dd}, StartTime={request.StartTime}, EndTime={request.EndTime}");
+                
+                // Convert time strings to TimeSpan
+                TimeSpan startTimeSpan, endTimeSpan;
+                if (!TimeSpan.TryParse(request.StartTime, out startTimeSpan))
                 {
-                    Console.WriteLine($"[FOLLOWUP] Creating queue entry for appointment {appointment.AppointmentID}");
+                    throw new ArgumentException($"Invalid start time format: {request.StartTime}");
+                }
+                if (!TimeSpan.TryParse(request.EndTime, out endTimeSpan))
+                {
+                    throw new ArgumentException($"Invalid end time format: {request.EndTime}");
+                }
+                
+                // Find the actual patient record by user_id
+                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.user_id == request.PatientID);
+                if (patient == null)
+                {
+                    // Create a new patient record if it doesn't exist
+                    var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == request.PatientID);
+                    if (user == null)
+                    {
+                        throw new InvalidOperationException($"No user found for ID: {request.PatientID}");
+                    }
                     
-                    var patient = await _context.Patients.FirstOrDefaultAsync(p => p.patient_id == request.PatientID);
-                    if (patient != null)
+                    patient = new Patient
                     {
-                        var queuePosition = await GetNextQueuePositionAsync(request.DoctorID, request.AppointmentDate, true);
-                        
-                        var queue = new PatientQueue
-                        {
-                            QueueID = Guid.NewGuid(),
-                            AppointmentID = appointment.AppointmentID,
-                            PatientID = request.PatientID,
-                            user_id = request.user_id, // Store user_id
-                            DoctorID = request.DoctorID,
-                            QueueZone = AppointmentType.FollowUp,
-                            QueuePosition = queuePosition,
-                            QueueStatus = QueueStatusType.Waiting,
-                            AppointmentTimeSlot = request.StartTime,
-                            AppointmentDate = request.AppointmentDate,
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        };
-                        
-                        Console.WriteLine($"[FOLLOWUP] Queue entry: QueueID={queue.QueueID}, PatientID={queue.PatientID}, Date={queue.AppointmentDate:yyyy-MM-dd}");
-                        
-                        _context.PatientQueues.Add(queue);
-                        await _context.SaveChangesAsync();
-                        
-                        Console.WriteLine($"[FOLLOWUP] Queue entry created successfully");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[FOLLOWUP ERROR] Patient not found for ID: {request.PatientID}");
-                    }
+                        patient_id = Guid.NewGuid(),
+                        user_id = request.PatientID,
+                        date_of_birth = DateOnly.FromDateTime(DateTime.Now.AddYears(-30)), // Default age
+                        sex = 'U', // Unknown
+                        country = "Unknown",
+                        pincode = "000000",
+                        city = "Unknown",
+                        state = "Unknown",
+                        blood_group = "Unknown",
+                        consulted_before = false,
+                        seeking_followup = false
+                    };
+                    
+                    _context.Patients.Add(patient);
+                    await _context.SaveChangesAsync();
+                    Console.WriteLine($"[PATIENT] Created new patient record: {patient.patient_id} for user: {request.PatientID}");
                 }
-                catch (Exception ex)
+                
+                var appointment = new Appointment
                 {
-                    Console.WriteLine($"[FOLLOWUP ERROR] Failed to create queue entry: {ex.Message}");
-                    Console.WriteLine($"[FOLLOWUP ERROR] Stack trace: {ex.StackTrace}");
-                }
+                    AppointmentID = Guid.NewGuid(),
+                    PatientID = patient.patient_id, // Use actual patient_id
+                    user_id = request.PatientID, // Store user_id for easier querying
+                    DoctorID = request.DoctorID,
+                    AppointmentDate = request.AppointmentDate,
+                    StartTime = startTimeSpan,
+                    EndTime = endTimeSpan,
+                    AppointmentType = request.AppointmentType,
+                    ReasonForVisit = request.ReasonForVisit,
+                    Status = AppointmentStatus.Scheduled, // Set to Scheduled instead of Pending
+                    CreatedBy = null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Appointments.Add(appointment);
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"[APPOINTMENT] Appointment created successfully: {appointment.AppointmentID}");
+
+                return await MapToDto(appointment);
             }
-
-            return await MapToDto(appointment);
-        }
-        
-        private async Task<int> GetNextQueuePositionAsync(Guid doctorId, DateTime date, bool isFollowUp)
-        {
-            var startOfDay = date.Date;
-            var endOfDay = startOfDay.AddDays(1);
-
-            var queueZone = isFollowUp 
-                ? AppointmentType.FollowUp 
-                : AppointmentType.Consultation;
-
-            var maxPosition = await _context.PatientQueues
-                .Where(q => q.DoctorID == doctorId 
-                    && q.AppointmentDate >= startOfDay 
-                    && q.AppointmentDate < endOfDay
-                    && q.QueueZone == queueZone
-                    && !q.IsDeleted)
-                .MaxAsync(q => (int?)q.QueuePosition) ?? 0;
-
-            return maxPosition + 1;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[APPOINTMENT ERROR] Failed to create appointment: {ex.Message}");
+                Console.WriteLine($"[APPOINTMENT ERROR] Stack trace: {ex.StackTrace}");
+                throw;
+            }
         }
         
 
@@ -161,7 +147,7 @@ namespace CMS.Application.Appointments.Services
             Console.WriteLine($"[SERVICE DEBUG] Found {appointments.Count} appointments");
             foreach (var apt in appointments)
             {
-                Console.WriteLine($"[SERVICE DEBUG] Appointment: ID={apt.AppointmentID}, PatientID={apt.PatientID}, user_id={apt.user_id}, Date={apt.AppointmentDate:yyyy-MM-dd}");
+                Console.WriteLine($"[SERVICE DEBUG] Appointment: ID={apt.AppointmentID}, PatientID={apt.PatientID}, user_id={apt.user_id}, Date={apt.AppointmentDate:yyyy-MM-dd}, Status={apt.Status}");
             }
             
             var dtos = new List<AppointmentDto>();
@@ -174,9 +160,35 @@ namespace CMS.Application.Appointments.Services
             return dtos;
         }
 
+        public async Task<AppointmentDto?> UpdateAppointmentStatusAsync(Guid appointmentId, int status)
+        {
+            Console.WriteLine($"[SERVICE DEBUG] UpdateAppointmentStatusAsync called with appointmentId: {appointmentId}, status: {status}");
+            
+            var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == appointmentId);
+            if (appointment == null) 
+            {
+                Console.WriteLine($"[SERVICE DEBUG] Appointment not found: {appointmentId}");
+                return null;
+            }
+
+            Console.WriteLine($"[SERVICE DEBUG] Found appointment: {appointment.AppointmentID}, current status: {appointment.Status}");
+            
+            appointment.Status = (AppointmentStatus)status;
+            appointment.UpdatedAt = DateTime.UtcNow;
+            
+            Console.WriteLine($"[SERVICE DEBUG] Updated appointment status to: {appointment.Status}");
+            
+            await _context.SaveChangesAsync();
+            
+            Console.WriteLine($"[SERVICE DEBUG] Changes saved successfully");
+            
+            return await MapToDto(appointment);
+        }
+
         private async Task<AppointmentDto> MapToDto(Appointment appointment)
         {
-            var patient = await _context.Users.FindAsync(appointment.PatientID);
+            // Use user_id to find the patient user, not PatientID
+            var patient = await _context.Users.FindAsync(appointment.user_id ?? appointment.PatientID);
             var doctor = await _context.Doctors
                 .Include(d => d.User)
                 .FirstOrDefaultAsync(d => d.DoctorID == appointment.DoctorID);
@@ -189,8 +201,8 @@ namespace CMS.Application.Appointments.Services
                 DoctorID = appointment.DoctorID,
                 DoctorName = doctor?.User?.Name ?? "Unknown",
                 AppointmentDate = appointment.AppointmentDate,
-                StartTime = appointment.StartTime,
-                EndTime = appointment.EndTime,
+                StartTime = appointment.StartTime.ToString(@"hh\:mm"),
+                EndTime = appointment.EndTime.ToString(@"hh\:mm"),
                 Status = appointment.Status,
                 AppointmentType = appointment.AppointmentType,
                 ReasonForVisit = appointment.ReasonForVisit,

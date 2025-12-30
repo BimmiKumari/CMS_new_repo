@@ -11,6 +11,9 @@
                     </div>
                     <div class="header-actions">
                         <span class="patient-count">{{ regularPatients.length }} patients waiting</span>
+                        <button mat-icon-button (click)="syncQueue()" title="Sync Appointments to Queue">
+                            <mat-icon>sync</mat-icon>
+                        </button>
                         <button mat-icon-button (click)="refreshQueue()" title="Refresh Queue">
                             <mat-icon>refresh</mat-icon>
                         </button>
@@ -136,13 +139,37 @@
                         *ngIf="pastEncounters.length > 0" (click)="viewEncounterDetails(pastEncounters[0])">
                         <mat-icon>visibility</mat-icon> View Latest EMR
                     </button>
+                    <button mat-stroked-button color="accent" class="view-all-btn"
+                        *ngIf="pastEncounters.length > 1" (click)="viewAllHistory()">
+                        <mat-icon>history</mat-icon> View All History
+                    </button>
                 </div>
                 <div class="history-card">
                     <div class="past-encounters-section" *ngIf="pastEncounters.length > 0; else noHistory">
-                        <div *ngFor="let enc of pastEncounters.slice(0, 3)" class="encounter-item">
-                            <div class="encounter-date">{{ enc.encounterDate | date:'MMM dd, yyyy' }}</div>
-                            <div class="encounter-diagnosis" *ngIf="enc.diagnoses?.length">
-                                <span *ngFor="let d of enc.diagnoses" class="diagnosis-tag">{{ d.diagnosisName }}</span>
+                        <div *ngFor="let enc of pastEncounters.slice(0, 3)" class="encounter-item" (click)="viewEncounterDetails(enc)">
+                            <div class="encounter-header">
+                                <div class="encounter-date">{{ enc.encounterDate | date:'MMM dd, yyyy' }}</div>
+                                <div class="encounter-doctor">{{ enc.doctorName }}</div>
+                            </div>
+                            <div class="encounter-content">
+                                <div class="encounter-complaint" *ngIf="enc.chiefComplaint">
+                                    <span class="content-label">Chief Complaint:</span>
+                                    <span class="content-text">{{ enc.chiefComplaint }}</span>
+                                </div>
+                                <div class="encounter-diagnosis" *ngIf="enc.diagnoses?.length">
+                                    <span class="content-label">Diagnosis:</span>
+                                    <div class="diagnosis-tags">
+                                        <span *ngFor="let d of enc.diagnoses.slice(0, 2)" class="diagnosis-tag">{{ d.diagnosisName }}</span>
+                                        <span *ngIf="enc.diagnoses.length > 2" class="more-tag">+{{ enc.diagnoses.length - 2 }} more</span>
+                                    </div>
+                                </div>
+                                <div class="encounter-prescriptions" *ngIf="enc.prescriptions?.length">
+                                    <span class="content-label">Medications:</span>
+                                    <span class="content-text">{{ enc.prescriptions.length }} prescribed</span>
+                                </div>
+                            </div>
+                            <div class="encounter-actions">
+                                <mat-icon class="view-icon">visibility</mat-icon>
                             </div>
                         </div>
                     </div>
@@ -179,6 +206,15 @@
                             <textarea matInput rows="2" [(ngModel)]="treatmentPlan"
                                 placeholder="Enter treatment plan..."></textarea>
                         </mat-form-field>
+                    </div>
+                    
+                    <!-- Save Button for Visit Notes -->
+                    <div class="save-notes-section">
+                        <button mat-raised-button color="primary" (click)="saveVisitNotes()" 
+                                [disabled]="!chiefComplaint && !diagnosis && !treatmentPlan"
+                                class="save-notes-btn">
+                            <mat-icon>save</mat-icon> Save Visit Notes
+                        </button>
                     </div>
                 </div>
             </div>
