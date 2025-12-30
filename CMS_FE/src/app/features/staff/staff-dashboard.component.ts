@@ -10,8 +10,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { SendNotificationComponent } from '../notifications/components/send-notification/send-notification.component';
-import { PatientQueueComponent } from '../doctor/components/patient-queue/patient-queue.component';
 import { PatientManagementComponent } from './components/patient-management.component';
+import { CheckAppointmentsComponent } from './components/check-appointments.component';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -30,8 +30,8 @@ import { takeUntil } from 'rxjs/operators';
     MatTooltipModule,
     RouterOutlet,
     SendNotificationComponent,
-    PatientQueueComponent,
-    PatientManagementComponent
+    PatientManagementComponent,
+    CheckAppointmentsComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -41,13 +41,13 @@ import { takeUntil } from 'rxjs/operators';
           <span class="brand-text">Staff Portal</span>
         </mat-toolbar>
         <mat-nav-list class="nav-list">
-          <a mat-list-item (click)="setActiveSection('appointments'); closeSidenavIfHandset()" [class.active]="activeSection === 'appointments'">
-            <mat-icon matListItemIcon>event</mat-icon>
-            <span matListItemTitle>Manage Appointments</span>
-          </a>
           <a mat-list-item (click)="setActiveSection('patients'); closeSidenavIfHandset()" [class.active]="activeSection === 'patients'">
             <mat-icon matListItemIcon>people</mat-icon>
             <span matListItemTitle>Patient Management</span>
+          </a>
+          <a mat-list-item (click)="setActiveSection('appointments'); closeSidenavIfHandset()" [class.active]="activeSection === 'appointments'">
+            <mat-icon matListItemIcon>event</mat-icon>
+            <span matListItemTitle>Check Appointments</span>
           </a>
           <a mat-list-item (click)="setActiveSection('reminders'); closeSidenavIfHandset()" [class.active]="activeSection === 'reminders'">
             <mat-icon matListItemIcon>chat</mat-icon>
@@ -74,12 +74,12 @@ import { takeUntil } from 'rxjs/operators';
 
         <div class="content">
           <div [ngSwitch]="activeSection">
-            <div *ngSwitchCase="'appointments'">
-              <app-patient-queue></app-patient-queue>
-            </div>
-
             <div *ngSwitchCase="'patients'">
               <app-patient-management (navigateToSection)="setActiveSection($event)"></app-patient-management>
+            </div>
+
+            <div *ngSwitchCase="'appointments'">
+              <app-check-appointments></app-check-appointments>
             </div>
 
             <div *ngSwitchCase="'reminders'">
@@ -412,7 +412,7 @@ import { takeUntil } from 'rxjs/operators';
 })
 export class StaffDashboardComponent implements OnDestroy {
   @ViewChild('drawer') drawer!: MatSidenav;
-  activeSection = 'appointments';
+  activeSection = 'patients';
   currentUser: any;
   isHandset = false;
   private destroyed = new Subject<void>();
