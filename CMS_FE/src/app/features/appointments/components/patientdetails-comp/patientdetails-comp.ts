@@ -75,6 +75,46 @@ export class PatientdetailsComp implements OnInit {
     const storedData = sessionStorage.getItem('pendingAppointment');
     if (storedData) {
       this.appointmentData = JSON.parse(storedData);
+
+      // Fetch existing patient details
+      const currentUser = this.authService.getCurrentUser();
+      const userId = currentUser?.userID || currentUser?.id;
+
+      if (userId) {
+        this.service.getPatientByUserId(userId).subscribe({
+          next: (response) => {
+            if (response.success && response.data) {
+              const patient = response.data;
+              console.log('Fetching patient details:', patient);
+
+              this.patientForm.patchValue({
+                date_of_birth: patient.date_of_birth ? new Date(patient.date_of_birth) : '',
+                sex: patient.sex,
+                country: patient.country,
+                pincode: patient.pincode,
+                city: patient.city,
+                state: patient.state,
+                address: patient.address,
+                marital_status: patient.marital_status,
+                blood_group: patient.blood_group,
+                allergies: patient.allergies,
+                chief_medical_complaints: patient.chief_medical_complaints,
+                consulted_before: patient.consulted_before,
+                // doctor_name: patient.doctor_name, // Keep blank or pre-fill if custom logic needed
+                last_review_date: patient.last_review_date ? new Date(patient.last_review_date) : '',
+                seeking_followup: patient.seeking_followup
+              });
+
+              this.snackBar.open('Patient details loaded', 'Close', { duration: 2000 });
+            }
+          },
+          error: (err) => {
+            console.log('No existing patient record found or error fetching:', err);
+            // Silent fail is okay here, user will just fill the form
+          }
+        });
+      }
+
     } else {
       // If no appointment data, redirect back to patient dashboard
       this.snackBar.open('Please select an appointment slot first', 'Close', { duration: 3000 });
@@ -337,7 +377,7 @@ export class PatientdetailsComp implements OnInit {
               }).subscribe({
                 next: (verificationResult) => {
                   console.log('Payment verified, now creating appointment...');
-                  
+
                   // Create appointment after successful payment
                   const appointmentDto: CreateAppointmentDto = {
                     patientID: userId || '',
@@ -348,13 +388,13 @@ export class PatientdetailsComp implements OnInit {
                     appointmentType: paymentRequest.isFollowup ? 1 : 0,
                     reasonForVisit: paymentRequest.reasonForVisit || 'General Consultation'
                   };
-                  
+
                   console.log('Creating appointment with data:', appointmentDto);
-                  
+
                   this.appointmentService.createAppointment(appointmentDto).subscribe({
                     next: (appointmentResult) => {
                       console.log('Appointment created successfully:', appointmentResult);
-                      
+
                       this.snackBar.open('Payment successful! Appointment created.', 'Close', {
                         duration: 3000,
                         panelClass: ['success-snackbar']
