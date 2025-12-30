@@ -974,9 +974,9 @@ import { CancellationSnackBarComponent } from '../../shared/components/cancellat
     }
     
     .appointments-sections {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
     }
     
     .appointments-section {
@@ -1112,6 +1112,7 @@ import { CancellationSnackBarComponent } from '../../shared/components/cancellat
     
     @media (max-width: 768px) {
       .appointments-sections {
+        grid-template-columns: 1fr;
         gap: 1rem;
       }
       

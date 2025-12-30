@@ -114,7 +114,7 @@ export class TemplateCreateComponent {
     description: '', 
     isActive: true, 
     type: 100, 
-    channelType: 1, 
+    channelType: 0, 
     category: 5 
   };
   saving = false;
@@ -150,7 +150,7 @@ export class TemplateCreateComponent {
       description: '', 
       isActive: true, 
       type: 100, 
-      channelType: 1, 
+      channelType: 0, 
       category: 5
     };
   }

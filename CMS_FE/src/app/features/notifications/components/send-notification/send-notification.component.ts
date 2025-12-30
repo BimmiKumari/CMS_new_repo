@@ -42,38 +42,65 @@ export class SendNotificationComponent implements OnInit {
   ngOnInit(): void {
     this.svc.getActiveTemplates().subscribe({
       next: (response: any) => {
+        console.log('Raw templates response:', response);
         if (response.success) {
           const raw = response.data || [];
-          // Normalize backend channelType -> frontend enum (FE: 0=Email,1=SMS)
-          this.templates = raw.map((t: any) => ({
-            ...t,
-            channelType: this.normalizeChannelFromBackend(t.channelType)
-          }));
-          this.emailTemplates = this.templates.filter(t => t.channelType === 0); // Email
-          this.smsTemplates = this.templates.filter(t => t.channelType === 1); // SMS
+          console.log('Raw templates data:', raw);
+          
+          this.templates = raw;
+          
+          // Filter based on channel type (handle both numeric and string values)
+          this.emailTemplates = raw.filter((t: any) => 
+            t.channelType === 0 || t.channelType === '0' || 
+            (typeof t.channelType === 'string' && t.channelType.toLowerCase() === 'email')
+          );
+          this.smsTemplates = raw.filter((t: any) => 
+            t.channelType === 1 || t.channelType === '1' || 
+            (typeof t.channelType === 'string' && t.channelType.toLowerCase() === 'sms')
+          );
+          
+          console.log('Email templates (channelType=0):', this.emailTemplates);
+          console.log('SMS templates (channelType=1):', this.smsTemplates);
+          
           if (this.emailTemplates.length) this.selectedEmailTemplate = this.emailTemplates[0];
           if (this.smsTemplates.length) this.selectedSmsTemplate = this.smsTemplates[0];
+          
           this.onEmailTemplateChange();
           this.onSmsTemplateChange();
+        } else {
+          console.error('Failed to get templates:', response.message);
         }
       },
-      error: e => console.error(e)
+      error: e => {
+        console.error('Error fetching templates:', e);
+      }
     });
   }
 
   private normalizeChannelFromBackend(channel: any): number {
-    // Quick alternative: treat backend channel=1 as SMS for now (FE expects 0=Email,1=SMS).
-    // Map backend 1 -> FE 1 (SMS), backend 2 -> FE 0 (Email).
+    // Normalize channel to frontend enum: 0=Email, 1=SMS
+    // Backend may return 0/1 (preferred) or 1/2 in some APIs, or string names.
     if (channel === null || channel === undefined) return 0;
     if (typeof channel === 'number') {
-      if (channel === 1) return 1; // backend 1 -> SMS
-      if (channel === 2) return 0; // backend 2 -> Email
-      // pass through if it's already FE-style
-      return channel;
+      // If backend already uses 0=Email,1=SMS, return as-is.
+      if (channel === 0 || channel === 1) return channel;
+      // If backend uses 1=Email,2=SMS, map accordingly.
+      if (channel === 1) return 0;
+      if (channel === 2) return 1;
+      // Fallback: treat unknown numeric as Email
+      return 0;
     }
-    const s = String(channel).toLowerCase();
-    if (s === '1' || s.includes('sms')) return 1;
-    if (s === '2' || s.includes('email')) return 0;
+    const s = String(channel).toLowerCase().trim();
+    // Try parse numeric strings first
+    const n = parseInt(s, 10);
+    if (!isNaN(n)) {
+      if (n === 0 || n === 1) return n;
+      if (n === 1) return 0;
+      if (n === 2) return 1;
+    }
+    if (s.includes('email')) return 0;
+    if (s.includes('sms')) return 1;
+    // Default to Email
     return 0;
   }
 
@@ -121,23 +148,41 @@ export class SendNotificationComponent implements OnInit {
 
   private getTemplateChannel(template: any): 'email' | 'sms' | 'unknown' {
     if (!template) return 'unknown';
-    const mapped = this.normalizeChannelFromBackend(template.channelType);
-    if (mapped === 0) return 'email';
-    if (mapped === 1) return 'sms';
+    const ct = template.channelType;
+    if (ct === 0 || ct === '0') return 'email';
+    if (ct === 1 || ct === '1') return 'sms';
+    if (typeof ct === 'string') {
+      const lower = ct.toLowerCase();
+      if (lower === 'email') return 'email';
+      if (lower === 'sms') return 'sms';
+    }
     return 'unknown';
   }
 
   sendSms() {
     const vars = this.smsVariables.getAllValues();
+    if (!this.selectedSmsTemplate) {
+      alert('No SMS template selected');
+      return;
+    }
+
+    const ch = this.getTemplateChannel(this.selectedSmsTemplate);
+    if (ch !== 'sms') {
+      alert('Selected template is not an SMS template. Choose an SMS template.');
+      return;
+    }
+
+    // Send using templateId for SMS
     const payload = {
-      type: this.selectedSmsTemplate.type,
+      templateId: this.selectedSmsTemplate.id,
       recipientPhone: this.modelSms.recipientPhone,
       recipientName: this.modelSms.recipientName,
       variables: vars
     };
-    console.log('SMS payload:', payload);
-    this.svc.sendSmsByType(payload).subscribe({
+    console.log('SMS send payload (by templateId):', payload);
+    this.svc.sendSmsNotification(payload).subscribe({
       next: (response) => {
+        console.log('SMS response:', response);
         if (response.success) {
           alert('SMS sent successfully');
         } else {
@@ -145,8 +190,9 @@ export class SendNotificationComponent implements OnInit {
         }
       },
       error: e => {
-        console.error(e);
-        alert(e.message || 'Failed to send SMS');
+        console.error('SMS error:', e);
+        const errorMessage = e.error?.message || e.message || 'Failed to send SMS';
+        alert(errorMessage);
       }
     });
   }

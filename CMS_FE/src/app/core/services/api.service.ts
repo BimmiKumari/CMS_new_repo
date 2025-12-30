@@ -109,8 +109,8 @@ export class ApiService {
     // Server-side wrapper shape: { Success, Data, Message, ... }
     if (!res) return res;
 
-    // If server already returns the expected shape, return as-is
-    if (typeof res.success === 'boolean' && 'data' in res) return res as any;
+    // If server already returns the expected shape with success field, return as-is
+    if (typeof res.success === 'boolean') return res as any;
 
     // If server uses PascalCase wrapper with inner Data
     if (res.Success && res.Data) {

@@ -16,8 +16,22 @@ namespace CMS.Infrastructure.Notifications.NotificationServices
         public TwilioSmsService(IOptions<TwilioConfig> config, ILogger<TwilioSmsService> logger)
         {
             _config = config.Value;
-            TwilioClient.Init(_config.AccountSid, _config.AuthToken);
             _logger = logger;
+            
+            // Log configuration values for debugging
+            _logger.LogInformation("Twilio Config - AccountSid: {AccountSid}, AuthToken: {AuthToken}, FromNumber: {FromNumber}", 
+                string.IsNullOrEmpty(_config.AccountSid) ? "MISSING" : $"{_config.AccountSid.Substring(0, Math.Min(8, _config.AccountSid.Length))}...",
+                string.IsNullOrEmpty(_config.AuthToken) ? "MISSING" : "SET",
+                string.IsNullOrEmpty(_config.FromNumber) ? "MISSING" : _config.FromNumber);
+            
+            // Validate configuration
+            if (string.IsNullOrEmpty(_config.AccountSid) || string.IsNullOrEmpty(_config.AuthToken) || string.IsNullOrEmpty(_config.FromNumber))
+            {
+                _logger.LogError("Twilio configuration is incomplete. Please check your .env file.");
+                throw new InvalidOperationException("Twilio configuration is incomplete. Please set AccountSid, AuthToken, and FromNumber in .env file.");
+            }
+            
+            TwilioClient.Init(_config.AccountSid, _config.AuthToken);
         }
 
         public async Task<bool> SendAsync(string recipient, string subject, string body, string? recipientName = null)

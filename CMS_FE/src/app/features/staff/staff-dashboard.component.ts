@@ -50,8 +50,8 @@ import { takeUntil } from 'rxjs/operators';
             <span matListItemTitle>Patient Management</span>
           </a>
           <a mat-list-item (click)="setActiveSection('reminders'); closeSidenavIfHandset()" [class.active]="activeSection === 'reminders'">
-            <mat-icon matListItemIcon>notifications</mat-icon>
-            <span matListItemTitle>Reminder Management</span>
+            <mat-icon matListItemIcon>chat</mat-icon>
+            <span matListItemTitle>Communication</span>
           </a>
         </mat-nav-list>
       </mat-sidenav>
@@ -79,7 +79,7 @@ import { takeUntil } from 'rxjs/operators';
             </div>
 
             <div *ngSwitchCase="'patients'">
-              <app-patient-management></app-patient-management>
+              <app-patient-management (navigateToSection)="setActiveSection($event)"></app-patient-management>
             </div>
 
             <div *ngSwitchCase="'reminders'">

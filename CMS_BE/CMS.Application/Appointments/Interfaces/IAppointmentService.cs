@@ -10,6 +10,7 @@ namespace CMS.Application.Appointments.Interfaces
         Task<AppointmentDto?> GetAppointmentByIdAsync(Guid id);
         Task<IEnumerable<AppointmentDto>> GetDoctorAppointmentsAsync(Guid doctorId, DateTime startDate, DateTime endDate);
         Task<IEnumerable<AppointmentDto>> GetPatientAppointmentsAsync(Guid patientId);
+        Task<IEnumerable<AppointmentDto>> GetAllAppointmentsAsync();
         Task<AppointmentDto?> UpdateAppointmentStatusAsync(Guid appointmentId, int status);
         Task<bool> DeleteAppointmentAsync(Guid appointmentId);
     }

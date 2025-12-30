@@ -160,6 +160,21 @@ namespace CMS.Application.Appointments.Services
             return dtos;
         }
 
+        public async Task<IEnumerable<AppointmentDto>> GetAllAppointmentsAsync()
+        {
+            var appointments = await _context.Appointments
+                .Where(a => !a.IsDeleted)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+            
+            var dtos = new List<AppointmentDto>();
+            foreach (var app in appointments)
+            {
+                dtos.Add(await MapToDto(app));
+            }
+            return dtos;
+        }
+
         public async Task<AppointmentDto?> UpdateAppointmentStatusAsync(Guid appointmentId, int status)
         {
             Console.WriteLine($"[SERVICE DEBUG] UpdateAppointmentStatusAsync called with appointmentId: {appointmentId}, status: {status}");
@@ -187,8 +202,19 @@ namespace CMS.Application.Appointments.Services
 
         private async Task<AppointmentDto> MapToDto(Appointment appointment)
         {
-            // Use user_id to find the patient user, not PatientID
-            var patient = await _context.Users.FindAsync(appointment.user_id ?? appointment.PatientID);
+            // First try to get user by user_id, then by PatientID
+            var userId = appointment.user_id ?? appointment.PatientID;
+            var patient = await _context.Users.FindAsync(userId);
+            
+            // If not found by user_id, try to find patient record and get user from there
+            if (patient == null)
+            {
+                var patientRecord = await _context.Patients
+                    .Include(p => p.User)
+                    .FirstOrDefaultAsync(p => p.patient_id == appointment.PatientID);
+                patient = patientRecord?.User;
+            }
+            
             var doctor = await _context.Doctors
                 .Include(d => d.User)
                 .FirstOrDefaultAsync(d => d.DoctorID == appointment.DoctorID);
@@ -198,6 +224,8 @@ namespace CMS.Application.Appointments.Services
                 AppointmentID = appointment.AppointmentID,
                 PatientID = appointment.PatientID,
                 PatientName = patient?.Name ?? "Unknown",
+                PatientEmail = patient?.Email ?? "Not provided",
+                PatientPhone = patient?.PhoneNumber ?? "Not provided",
                 DoctorID = appointment.DoctorID,
                 DoctorName = doctor?.User?.Name ?? "Unknown",
                 AppointmentDate = appointment.AppointmentDate,

@@ -53,7 +53,7 @@
         </ng-container>
         <ng-template #viewRow>
           <td>{{t.name}}</td>
-          <td>{{t.channelType}}</td>
+          <td>{{getChannelTypeName(t.channelType)}}</td>
           <td>{{t.isActive ? 'Yes' : 'No'}}</td>
           <td>
             <button class="btn btn-sm btn-primary me-2" (click)="edit(t)">Edit</button>
