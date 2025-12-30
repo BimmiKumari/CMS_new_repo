@@ -119,10 +119,11 @@ export interface Observation {
 export interface TreatmentPlan {
     treatmentPlanID: string;
     encounterID: string;
-    description: string;
-    startDate: string;
-    endDate?: string;
-    goal?: string;
+    planDescription: string;
+    goals?: string;
+    instructions?: string;
+    dietaryAdvice?: string;
+    followUpDate?: string;
     status: string;
 }
 
@@ -214,10 +215,15 @@ export interface CreateDiagnosisDto {
 
 export interface CreateTreatmentPlanDto {
     encounterID: string;
-    description: string;
-    startDate: string;
-    endDate?: string;
-    goal?: string;
+    planDescription: string;
+    goals?: string;
+    instructions?: string;
+    precautions?: string;
+    dietaryAdvice?: string;
+    lifestyleModifications?: string;
+    followUpDate?: string;
+    followUpInstructions?: string;
+    createdBy: string;
 }
 
 export interface CreateObservationDto {

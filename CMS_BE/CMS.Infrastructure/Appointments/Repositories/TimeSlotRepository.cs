@@ -16,11 +16,24 @@ namespace CMS.Infrastructure.Appointments.Repositories
 
         public async Task<List<TimeSlot>> GetBookedSlotsAsync(Guid doctorId, DateTime date)
         {
-            return await _context.TimeSlots
-                .Where(ts => ts.DoctorID == doctorId 
-                          && ts.SlotDate.Date == date.Date 
-                          && !ts.IsAvailable)
+            // Get booked slots from Appointments table instead of TimeSlots table
+            var bookedAppointments = await _context.Appointments
+                .Where(a => a.DoctorID == doctorId 
+                          && a.AppointmentDate.Date == date.Date 
+                          && !a.IsDeleted
+                          && a.Status != CMS.Domain.Appointments.Enums.AppointmentStatus.Cancelled)
                 .ToListAsync();
+
+            // Convert appointments to TimeSlot format for compatibility
+            return bookedAppointments.Select(a => new TimeSlot
+            {
+                SlotID = Guid.NewGuid(),
+                DoctorID = a.DoctorID,
+                SlotDate = a.AppointmentDate,
+                StartTime = a.StartTime,
+                EndTime = a.EndTime,
+                IsAvailable = false
+            }).ToList();
         }
 
         public async Task<TimeSlot> CreateTimeSlotAsync(TimeSlot slot)

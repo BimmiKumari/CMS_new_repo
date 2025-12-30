@@ -2,6 +2,7 @@ using CMS.Application.EMR.DTOs;
 using CMS.Application.EMR.Interfaces;
 using CMS.Application.Shared.DTOs;
 using CMS.Data;
+using CMS.Domain.Appointments.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -60,7 +61,7 @@ namespace CMS.Api.Controllers.EMR
         /// Add a patient to the queue (called after appointment booking and payment)
         /// </summary>
         [HttpPost("add/{appointmentId}")]
-        [Authorize(Roles = "Staff,Admin,Patient")]
+        [Authorize(Roles = "Staff,Admin,Patient,Doctor")]
         public async Task<ActionResult<QueuePatientDto>> AddToQueue(Guid appointmentId)
         {
             try
@@ -125,8 +126,57 @@ namespace CMS.Api.Controllers.EMR
         }
 
         /// <summary>
-        /// Test endpoint to check raw queue data
+        /// Sync appointments to queue for a specific doctor and date
         /// </summary>
+        [HttpPost("sync/{doctorId}")]
+        [Authorize(Roles = "Doctor,Staff,Admin")]
+        public async Task<ActionResult> SyncAppointmentsToQueue(
+            Guid doctorId,
+            [FromQuery] DateTime? date = null)
+        {
+            try
+            {
+                var syncDate = date ?? DateTime.Now.Date;
+                var futureDate = syncDate.AddDays(30);
+                
+                using var scope = HttpContext.RequestServices.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<CmsDbContext>();
+                
+                // Get appointments that are not in queue yet
+                var appointmentsNotInQueue = await context.Appointments
+                    .Where(a => a.DoctorID == doctorId 
+                        && a.AppointmentDate.Date >= syncDate
+                        && a.AppointmentDate.Date <= futureDate
+                        && a.Status == AppointmentStatus.Scheduled)
+                    .Where(a => !context.PatientQueues.Any(q => q.AppointmentID == a.AppointmentID && !q.IsDeleted))
+                    .ToListAsync();
+                
+                var syncedCount = 0;
+                foreach (var appointment in appointmentsNotInQueue)
+                {
+                    try
+                    {
+                        await _queueService.AddToQueueAsync(appointment.AppointmentID);
+                        syncedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Failed to add appointment {appointment.AppointmentID} to queue: {ex.Message}");
+                    }
+                }
+                
+                return Ok(new { 
+                    message = $"Synced {syncedCount} appointments to queue", 
+                    syncedCount,
+                    totalFound = appointmentsNotInQueue.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error syncing appointments to queue for doctor {doctorId}");
+                return StatusCode(500, new { message = "Error syncing appointments to queue" });
+            }
+        }
         [HttpGet("test/{doctorId}")]
         public async Task<ActionResult> TestQueueData(Guid doctorId)
         {
