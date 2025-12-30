@@ -157,9 +157,14 @@ builder.Services.Configure<SendGridConfig>(options =>
 // Configure Twilio from environment variables
 builder.Services.Configure<TwilioConfig>(options =>
 {
-    options.AccountSid = Environment.GetEnvironmentVariable("AccountSid") ?? string.Empty;
-    options.AuthToken = Environment.GetEnvironmentVariable("AuthToken") ?? string.Empty;
-    options.FromNumber = Environment.GetEnvironmentVariable("FromNumber") ?? string.Empty;
+    options.AccountSid = Environment.GetEnvironmentVariable("TWILIO_ACCOUNT_SID") ?? Environment.GetEnvironmentVariable("AccountSid") ?? string.Empty;
+    options.AuthToken = Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN") ?? Environment.GetEnvironmentVariable("AuthToken") ?? string.Empty;
+    options.FromNumber = Environment.GetEnvironmentVariable("TWILIO_FROM_NUMBER") ?? Environment.GetEnvironmentVariable("FromNumber") ?? string.Empty;
+    
+    // Log configuration for debugging
+    Console.WriteLine($"[Twilio Config] AccountSid: {(string.IsNullOrEmpty(options.AccountSid) ? "MISSING" : "SET")}");
+    Console.WriteLine($"[Twilio Config] AuthToken: {(string.IsNullOrEmpty(options.AuthToken) ? "MISSING" : "SET")}");
+    Console.WriteLine($"[Twilio Config] FromNumber: {options.FromNumber}");
 });
 
 // Notification repositories

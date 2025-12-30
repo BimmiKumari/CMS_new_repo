@@ -37,12 +37,12 @@ namespace CMS.Api.Controllers.Notifications
             {
                 var templates = await _templateService.GetAllTemplatesAsync();
                 var response = templates.Select(MapToResponseDto).ToList();
-                return Ok(response);
+                return Ok(new { success = true, data = response, message = "" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all templates");
-                return StatusCode(500, "Internal server error");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
 
@@ -56,12 +56,12 @@ namespace CMS.Api.Controllers.Notifications
             {
                 var templates = await _templateService.GetActiveTemplatesAsync();
                 var response = templates.Select(MapToResponseDto).ToList();
-                return Ok(response);
+                return Ok(new { success = true, data = response, message = "" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting active templates");
-                return StatusCode(500, "Internal server error");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
 
@@ -361,19 +361,19 @@ namespace CMS.Api.Controllers.Notifications
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    return BadRequest(new { success = false, message = "Invalid request data", errors = ModelState });
                 }
 
                 // Get the template to verify it's an SMS template
                 var template = await _templateService.GetTemplateByIdAsync(dto.TemplateId);
                 if (template == null)
                 {
-                    return NotFound($"Template with ID {dto.TemplateId} not found");
+                    return NotFound(new { success = false, message = $"Template with ID {dto.TemplateId} not found" });
                 }
 
                 if (template.ChannelType != NotificationChannelType.SMS)
                 {
-                    return BadRequest($"Template {dto.TemplateId} is not an SMS template. Channel type: {template.ChannelType}");
+                    return BadRequest(new { success = false, message = $"Template {dto.TemplateId} is not an SMS template. Channel type: {template.ChannelType}" });
                 }
 
                 var success = await _notificationService.SendNotificationAsync(
@@ -386,18 +386,23 @@ namespace CMS.Api.Controllers.Notifications
                 if (success)
                 {
                     _logger.LogInformation("SMS notification sent successfully to {RecipientPhone}", dto.RecipientPhone);
-                    return Ok(new { message = "SMS notification sent successfully" });
+                    return Ok(new { success = true, message = "SMS notification sent successfully" });
                 }
                 else
                 {
                     _logger.LogError("Failed to send SMS notification to {RecipientPhone}", dto.RecipientPhone);
-                    return BadRequest("Failed to send SMS notification");
+                    return BadRequest(new { success = false, message = "Failed to send SMS notification. Check Twilio configuration and credentials." });
                 }
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Configuration error sending SMS notification");
+                return BadRequest(new { success = false, message = "SMS service configuration error", error = ex.Message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending SMS notification");
-                return StatusCode(500, "Internal server error");
+                return StatusCode(500, new { success = false, message = "Internal server error", error = ex.Message });
             }
         }
 

@@ -54,7 +54,7 @@ import { NotificationService } from '../../../../core/services/notification.serv
             <ng-container matColumnDef="channelType">
               <th mat-header-cell *matHeaderCellDef>Channel</th>
               <td mat-cell *matCellDef="let template">
-                {{template.channelType === 0 ? 'Email' : 'SMS'}}
+                {{ normalizeChannelFromBackend(template.channelType) === 0 ? 'Email' : 'SMS' }}
               </td>
             </ng-container>
 
@@ -188,6 +188,27 @@ export class TemplateListComponent implements OnInit {
 
   constructor(private notificationService: NotificationService) { }
 
+  // Normalize channel to frontend enum: 0=Email, 1=SMS
+  normalizeChannelFromBackend(channel: any): number {
+    if (channel === null || channel === undefined) return 0;
+    if (typeof channel === 'number') {
+      if (channel === 0 || channel === 1) return channel;
+      if (channel === 1) return 0;
+      if (channel === 2) return 1;
+      return 0;
+    }
+    const s = String(channel).toLowerCase().trim();
+    const n = parseInt(s, 10);
+    if (!isNaN(n)) {
+      if (n === 0 || n === 1) return n;
+      if (n === 1) return 0;
+      if (n === 2) return 1;
+    }
+    if (s.includes('email')) return 0;
+    if (s.includes('sms')) return 1;
+    return 0;
+  }
+
   ngOnInit(): void {
     this.fetch();
   }
@@ -196,7 +217,19 @@ export class TemplateListComponent implements OnInit {
     this.loading = true;
     this.notificationService.getAllTemplates().subscribe({
       next: (response: any) => {
+        console.log('Template list response:', response);
         this.templates = response.success ? response.data || [] : [];
+        console.log('Templates with channel types:', this.templates.map(t => ({ 
+          name: t.name, 
+          channelType: t.channelType, 
+          type: typeof t.channelType,
+          displayName: this.getChannelTypeName(t.channelType)
+        })));
+        
+        // Log each template individually for better debugging
+        this.templates.forEach((t, index) => {
+          console.log(`Template ${index}: Name="${t.name}", ChannelType=${t.channelType} (${typeof t.channelType}), Display="${this.getChannelTypeName(t.channelType)}"`);
+        });
         this.loading = false;
       },
       error: (error: any) => {
@@ -263,5 +296,19 @@ export class TemplateListComponent implements OnInit {
       5: 'System'
     };
     return categories[category as keyof typeof categories] || 'Unknown';
+  }
+
+  getChannelTypeName(channelType: any): string {
+    console.log('getChannelTypeName called with:', channelType, typeof channelType);
+    // Handle both numeric and string enum values
+    if (channelType === 0 || channelType === '0') return 'Email';
+    if (channelType === 1 || channelType === '1') return 'SMS';
+    if (typeof channelType === 'string') {
+      const lower = channelType.toLowerCase();
+      if (lower === 'email') return 'Email';
+      if (lower === 'sms') return 'SMS';
+    }
+    console.log('getChannelTypeName returning Unknown for:', channelType);
+    return 'Unknown';
   }
 }

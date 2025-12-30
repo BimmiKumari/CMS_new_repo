@@ -809,8 +809,11 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
         this.emrService.createEncounter(encounterDto).subscribe({
             next: (response: any) => {
                 console.log('Encounter created successfully:', response);
-                // The response should be the encounter object directly
-                this.selectedEncounter = response;
+                if (response.success) {
+                    this.selectedEncounter = response.data;
+                } else {
+                    this.selectedEncounter = response;
+                }
                 this.performSaveNotes();
             },
             error: (error) => {
@@ -821,13 +824,19 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
     }
 
     performSaveNotes(): void {
-        if (!this.selectedEncounter) return;
+        if (!this.selectedEncounter || !this.selectedEncounter.encounterID) {
+            console.error('No valid encounter found for updating');
+            this.snackBar.open('Error: No encounter found to update', 'Close', { duration: 3000 });
+            return;
+        }
 
         const updateDto: UpdateEncounterDto = {
             encounterID: this.selectedEncounter.encounterID,
             chiefComplaint: this.chiefComplaint,
             assessmentAndPlan: this.diagnosis
         };
+
+        console.log('Updating encounter with:', updateDto);
 
         this.emrService.updateEncounter(updateDto).subscribe({
             next: (updatedEncounter: any) => {
@@ -860,7 +869,7 @@ export class PatientQueueComponent implements OnInit, OnDestroy {
             },
             error: (error) => {
                 console.error('Error saving visit notes:', error);
-                this.snackBar.open('Error saving visit notes', 'Close', { duration: 3000 });
+                this.snackBar.open('Error saving visit notes: ' + (error.message || 'Unknown error'), 'Close', { duration: 3000 });
             }
         });
     }

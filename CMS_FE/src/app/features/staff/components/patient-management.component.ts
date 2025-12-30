@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, OnInit, Inject, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
@@ -69,7 +69,6 @@ import { AppointmentService } from '../../../core/services/appointment.service';
               <td mat-cell *matCellDef="let patient">
                 <div class="patient-name">
                   <strong>{{ patient.name }}</strong>
-                  <small>ID: {{ patient.id }}</small>
                 </div>
               </td>
             </ng-container>
@@ -122,8 +121,8 @@ import { AppointmentService } from '../../../core/services/appointment.service';
                 <button mat-icon-button matTooltip="View Details" (click)="viewPatientDetails(patient)">
                   <mat-icon>visibility</mat-icon>
                 </button>
-                <button mat-icon-button matTooltip="Edit Patient" (click)="editPatient(patient)">
-                  <mat-icon>edit</mat-icon>
+                <button mat-icon-button matTooltip="Take Action" (click)="takeAction(patient)">
+                  <mat-icon>send</mat-icon>
                 </button>
               </td>
             </ng-container>
@@ -298,6 +297,7 @@ export class PatientManagementComponent implements OnInit {
   patients: any[] = [];
   filteredPatients: any[] = [];
   loading = false;
+  @Output() navigateToSection = new EventEmitter<string>();
 
   constructor(private appointmentService: AppointmentService, private dialog: MatDialog) {}
 
@@ -307,90 +307,146 @@ export class PatientManagementComponent implements OnInit {
 
   loadPatients(): void {
     this.loading = true;
-    console.log('Loading patients...');
+    console.log('🔄 Loading patients from appointments...');
     
-    // Use mock data for now to test the UI
-    setTimeout(() => {
-      this.patients = [
-        {
-          id: '1',
-          name: 'John Doe',
-          email: 'john.doe@email.com',
-          phoneNumber: '+1234567890',
-          profilePictureURL: '',
-          appointmentCount: 3,
-          lastAppointmentDate: '2024-12-20'
-        },
-        {
-          id: '2', 
-          name: 'Jane Smith',
-          email: 'jane.smith@email.com',
-          phoneNumber: '+1987654321',
-          profilePictureURL: '',
-          appointmentCount: 1,
-          lastAppointmentDate: '2024-12-15'
-        }
-      ];
-      this.filteredPatients = [...this.patients];
-      this.loading = false;
-      console.log('Mock patients loaded:', this.patients);
-    }, 1000);
-    
-    // Also try the real API in parallel
-    this.tryRealAPI();
-  }
-
-  tryRealAPI(): void {
+    // Try the main endpoint first
     this.appointmentService.getAllAppointments().subscribe({
       next: (response) => {
-        console.log('Real API response:', response);
-        // If we get real data, replace mock data
-        if (response && (response.success ? response.data : response)) {
-          const appointments = response.success ? response.data : response;
-          if (Array.isArray(appointments) && appointments.length > 0) {
-            this.extractPatientsFromAppointments(appointments);
-          }
-        }
+        this.handleAppointmentsResponse(response);
       },
       error: (error) => {
-        console.error('API Error:', error);
+        console.error('❌ Main endpoint failed:', error);
+        // Try fallback endpoint
+        this.tryFallbackEndpoint();
       }
     });
   }
 
-  extractPatientsFromAppointments(appointments: any[]): void {
-    console.log('Extracting patients from appointments:', appointments);
-    const patientMap = new Map();
+  tryFallbackEndpoint(): void {
+    console.log('🔄 Trying fallback endpoint...');
+    this.appointmentService.getAllAppointmentsViaPatients().subscribe({
+      next: (response) => {
+        console.log('✅ Fallback endpoint worked');
+        this.handleAppointmentsResponse(response);
+      },
+      error: (error) => {
+        console.error('❌ Fallback endpoint also failed:', error);
+        this.patients = [];
+        this.filteredPatients = [];
+        this.loading = false;
+      }
+    });
+  }
+
+  handleAppointmentsResponse(response: any): void {
+    console.log('📋 Raw API response:', response);
     
-    appointments.forEach(appointment => {
-      const patientId = appointment.patientId || appointment.patientID || appointment.PatientID;
-      const patientName = appointment.patientName || appointment.PatientName || 'Unknown Patient';
+    let appointments = [];
+    
+    // Handle the test/all endpoint response format
+    if (response?.success && response?.appointments) {
+      appointments = response.appointments;
+      console.log('✅ Using response.appointments:', appointments);
+    } else if (response?.appointments) {
+      appointments = response.appointments;
+      console.log('✅ Using response.appointments (no success flag):', appointments);
+    } else if (response?.success && response?.data) {
+      appointments = response.data;
+      console.log('✅ Using response.data:', appointments);
+    } else if (Array.isArray(response)) {
+      appointments = response;
+      console.log('✅ Using direct array response:', appointments);
+    } else if (response && typeof response === 'object') {
+      // Try to find array in response object
+      const possibleArrays = Object.values(response).filter(val => Array.isArray(val));
+      if (possibleArrays.length > 0) {
+        appointments = possibleArrays[0] as any[];
+        console.log('✅ Found array in response object:', appointments);
+      }
+    }
+    
+    console.log('📊 Final appointments array:', appointments);
+    console.log('📊 Appointments count:', appointments.length);
+    
+    if (Array.isArray(appointments) && appointments.length > 0) {
+      console.log('📝 Sample appointment:', appointments[0]);
+      this.extractPatientsFromAppointments(appointments);
+    } else {
+      console.log('⚠️ No appointments found or invalid format');
+      this.patients = [];
+      this.filteredPatients = [];
+    }
+    this.loading = false;
+  }
+
+  extractPatientsFromAppointments(appointments: any[]): void {
+    console.log('🔍 Extracting patients from appointments:', appointments.length, 'appointments');
+    console.log('🔍 Sample appointment structure:', appointments[0]);
+    
+    const patientMap = new Map();
+    let processedCount = 0;
+    
+    appointments.forEach((appointment, index) => {
+      // Handle different possible field names from API
+      const patientId = appointment.patientId || appointment.patientID || appointment.PatientID || appointment.userId || appointment.UserID;
+      const patientName = appointment.patientName || appointment.PatientName || appointment.userName || appointment.UserName || `Patient ${patientId}`;
+      const patientEmail = appointment.PatientEmail || appointment.patientEmail || appointment.userEmail || appointment.email;
+      const patientPhone = appointment.PatientPhone || appointment.patientPhone || appointment.phoneNumber || appointment.PhoneNumber;
+      const appointmentDate = appointment.appointmentDate || appointment.AppointmentDate || appointment.date || appointment.Date;
       
-      if (patientId && !patientMap.has(patientId)) {
-        patientMap.set(patientId, {
-          id: patientId,
-          name: patientName,
-          email: appointment.patientEmail || appointment.PatientEmail || '',
-          phoneNumber: appointment.patientPhone || appointment.PatientPhone || '',
-          profilePictureURL: appointment.patientProfilePicture || '',
-          appointmentCount: 1,
-          lastAppointmentDate: appointment.appointmentDate || appointment.AppointmentDate
-        });
-      } else if (patientId && patientMap.has(patientId)) {
-        const patient = patientMap.get(patientId);
-        patient.appointmentCount++;
-        const currentDate = appointment.appointmentDate || appointment.AppointmentDate;
-        if (new Date(currentDate) > new Date(patient.lastAppointmentDate)) {
-          patient.lastAppointmentDate = currentDate;
+      console.log(`🔍 Processing appointment ${index + 1}:`, {
+        patientId,
+        patientName,
+        patientEmail,
+        patientPhone,
+        appointmentDate,
+        originalAppointment: appointment
+      });
+      
+      if (patientId) {
+        processedCount++;
+        
+        if (!patientMap.has(patientId)) {
+          patientMap.set(patientId, {
+            id: patientId,
+            name: patientName,
+            email: patientEmail || 'Not provided',
+            phoneNumber: patientPhone || 'Not provided',
+            profilePictureURL: appointment.patientProfilePicture || appointment.profilePictureURL || '',
+            appointmentCount: 1,
+            lastAppointmentDate: appointmentDate,
+            appointments: [appointment]
+          });
+          console.log(`➕ Added new patient: ${patientName} (ID: ${patientId})`);
+        } else {
+          const patient = patientMap.get(patientId);
+          patient.appointmentCount++;
+          patient.appointments.push(appointment);
+          
+          if (appointmentDate && new Date(appointmentDate) > new Date(patient.lastAppointmentDate)) {
+            patient.lastAppointmentDate = appointmentDate;
+          }
+          console.log(`🔄 Updated patient: ${patientName} (Total appointments: ${patient.appointmentCount})`);
         }
+      } else {
+        console.log(`⚠️ Skipping appointment ${index + 1} - no patient ID found`);
       }
     });
     
     const extractedPatients = Array.from(patientMap.values());
+    console.log(`📊 Extraction complete:`);
+    console.log(`   - Total appointments processed: ${appointments.length}`);
+    console.log(`   - Appointments with patient ID: ${processedCount}`);
+    console.log(`   - Unique patients found: ${extractedPatients.length}`);
+    
     if (extractedPatients.length > 0) {
       this.patients = extractedPatients;
       this.filteredPatients = [...this.patients];
-      console.log('Successfully extracted patients:', this.patients);
+      console.log('✅ Successfully extracted patients:', this.patients);
+    } else {
+      console.log('⚠️ No valid patients found in appointments');
+      this.patients = [];
+      this.filteredPatients = [];
     }
   }
 
@@ -413,9 +469,15 @@ export class PatientManagementComponent implements OnInit {
 
   viewPatientDetails(patient: any): void {
     this.dialog.open(PatientDetailsDialog, {
-      width: '600px',
+      width: '800px',
+      maxHeight: '90vh',
       data: patient
     });
+  }
+
+  takeAction(patient: any): void {
+    console.log('Take action for patient:', patient);
+    this.navigateToSection.emit('reminders');
   }
 
   editPatient(patient: any): void {
@@ -427,7 +489,7 @@ export class PatientManagementComponent implements OnInit {
 @Component({
   selector: 'patient-details-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatCardModule],
   template: `
     <h2 mat-dialog-title>Patient Details</h2>
     <mat-dialog-content>
@@ -436,7 +498,6 @@ export class PatientManagementComponent implements OnInit {
           <img [src]="getPatientAvatar()" alt="Patient Avatar" class="patient-avatar">
           <div class="patient-info">
             <h3>{{ data.name }}</h3>
-            <p>ID: {{ data.id }}</p>
           </div>
         </div>
         
@@ -473,6 +534,40 @@ export class PatientManagementComponent implements OnInit {
             </div>
           </div>
         </div>
+
+        <!-- Appointments History -->
+        <div class="appointments-section" *ngIf="data.appointments && data.appointments.length > 0">
+          <h4>Appointment History</h4>
+          <div class="appointments-list">
+            <mat-card *ngFor="let appointment of data.appointments" class="appointment-card">
+              <mat-card-content>
+                <div class="appointment-header">
+                  <div class="appointment-date">
+                    <mat-icon>event</mat-icon>
+                    {{ getAppointmentDate(appointment) | date:'mediumDate' }}
+                  </div>
+                  <div class="appointment-status" [ngClass]="getStatusClass(appointment)">
+                    {{ getStatusText(appointment) }}
+                  </div>
+                </div>
+                <div class="appointment-details">
+                  <div class="detail" *ngIf="getDoctorName(appointment)">
+                    <mat-icon>person</mat-icon>
+                    <span>Dr. {{ getDoctorName(appointment) }}</span>
+                  </div>
+                  <div class="detail" *ngIf="getAppointmentTime(appointment)">
+                    <mat-icon>access_time</mat-icon>
+                    <span>{{ getAppointmentTime(appointment) }}</span>
+                  </div>
+                  <div class="detail" *ngIf="getReasonForVisit(appointment)">
+                    <mat-icon>description</mat-icon>
+                    <span>{{ getReasonForVisit(appointment) }}</span>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </div>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions>
@@ -483,6 +578,8 @@ export class PatientManagementComponent implements OnInit {
   styles: [`
     .patient-details {
       padding: 1rem 0;
+      height: 70vh;
+      overflow-y: auto;
     }
     
     .patient-header {
@@ -518,6 +615,7 @@ export class PatientManagementComponent implements OnInit {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
+      margin-bottom: 2rem;
     }
     
     .detail-item {
@@ -542,6 +640,77 @@ export class PatientManagementComponent implements OnInit {
     .detail-item span {
       color: #1f2937;
     }
+
+    .appointments-section {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 1.5rem;
+    }
+
+    .appointments-section h4 {
+      margin: 0 0 1rem 0;
+      color: #1f2937;
+      font-weight: 600;
+    }
+
+    .appointments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .appointment-card {
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+
+    .appointment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .appointment-date {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .appointment-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-scheduled { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #dcfce7; color: #15803d; }
+    .status-cancelled { background: #fee2e2; color: #dc2626; }
+    .status-waiting { background: #fef3c7; color: #92400e; }
+
+    .appointment-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .detail {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #6b7280;
+      font-size: 0.875rem;
+    }
+
+    .detail mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: #10b981;
+    }
     
     mat-dialog-actions {
       justify-content: flex-end;
@@ -561,6 +730,75 @@ export class PatientDetailsDialog {
     }
     const name = this.data.name || 'Patient';
     return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981&textColor=ffffff`;
+  }
+
+  getAppointmentDate(appointment: any): string {
+    return appointment.appointmentDate || appointment.AppointmentDate || appointment.date;
+  }
+
+  getDoctorName(appointment: any): string {
+    return appointment.doctorName || appointment.DoctorName || appointment.doctor || '';
+  }
+
+  getAppointmentTime(appointment: any): string {
+    const startTime = appointment.startTime || appointment.StartTime;
+    const endTime = appointment.endTime || appointment.EndTime;
+    if (startTime && endTime) {
+      return `${this.formatTime(startTime)} - ${this.formatTime(endTime)}`;
+    }
+    return startTime ? this.formatTime(startTime) : '';
+  }
+
+  getReasonForVisit(appointment: any): string {
+    return appointment.reasonForVisit || appointment.ReasonForVisit || appointment.notes || '';
+  }
+
+  getStatusText(appointment: any): string {
+    const status = appointment.status || appointment.Status;
+    if (typeof status === 'string') return status;
+    switch (status) {
+      case 1: return 'Scheduled';
+      case 2: return 'In Progress';
+      case 3: return 'Completed';
+      case 4: return 'Cancelled';
+      case 5: return 'No Show';
+      default: return 'Scheduled';
+    }
+  }
+
+  getStatusClass(appointment: any): string {
+    const status = appointment.status || appointment.Status;
+    if (typeof status === 'string') {
+      switch (status.toLowerCase()) {
+        case 'completed': return 'status-completed';
+        case 'cancelled': return 'status-cancelled';
+        case 'waiting': return 'status-waiting';
+        default: return 'status-scheduled';
+      }
+    }
+    switch (status) {
+      case 3: return 'status-completed';
+      case 4: return 'status-cancelled';
+      case 2: return 'status-waiting';
+      default: return 'status-scheduled';
+    }
+  }
+
+  formatTime(timeSpan: string): string {
+    if (!timeSpan) return '';
+    try {
+      if (timeSpan.includes(':')) {
+        const parts = timeSpan.split(':');
+        const hours = parseInt(parts[0]);
+        const minutes = parts[1];
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+        return `${displayHours}:${minutes} ${period}`;
+      }
+      return timeSpan;
+    } catch {
+      return timeSpan;
+    }
   }
   
   editPatient(): void {

@@ -45,23 +45,14 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
             <mat-icon matListItemIcon>groups</mat-icon>
             <span matListItemTitle>Patient Queue</span>
           </a>
-          <a mat-list-item (click)="setActiveSection('schedule')" [class.active]="activeSection === 'schedule'">
-            <mat-icon matListItemIcon>schedule</mat-icon>
-            <span matListItemTitle>My Schedule</span>
-          </a>
+
           <a mat-list-item (click)="setActiveSection('profile')" [class.active]="activeSection === 'profile'">
             <mat-icon matListItemIcon>person</mat-icon>
             <span matListItemTitle>Doctor Profile</span>
           </a>
         </mat-nav-list>
 
-        <div class="sidebar-footer">
-          <mat-divider></mat-divider>
-          <button mat-button (click)="logout()" class="logout-btn">
-            <mat-icon>logout</mat-icon>
-            <span>Logout</span>
-          </button>
-        </div>
+
       </mat-sidenav>
 
       <mat-sidenav-content>
@@ -95,17 +86,6 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
             <!-- Doctor Profile -->
             <div *ngSwitchCase="'profile'">
               <app-doctor-profile></app-doctor-profile>
-            </div>
-
-            <!-- Schedule -->
-            <div *ngSwitchCase="'schedule'">
-              <h1 class="page-title">My Schedule</h1>
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>Manage your availability and working hours in the Profile section.</p>
-                  <button mat-stroked-button color="primary" (click)="setActiveSection('profile')">Go to Profile</button>
-                </mat-card-content>
-              </mat-card>
             </div>
 
             <!-- Default Welcome -->

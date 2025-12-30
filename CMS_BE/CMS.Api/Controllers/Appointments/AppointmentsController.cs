@@ -116,6 +116,27 @@ namespace CMS.Api.Controllers.Appointments
             return Ok(new { message = "Endpoint working", patientId = patientId });
         }
         
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllAppointmentsForStaff()
+        {
+            try
+            {
+                _logger.LogInformation("Getting all appointments for staff dashboard");
+                var appointments = await _appointmentService.GetAllAppointmentsAsync();
+                _logger.LogInformation("Found {Count} appointments", appointments.Count());
+                return Ok(new { 
+                    success = true, 
+                    data = appointments,
+                    count = appointments.Count()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching all appointments for staff");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
         [HttpGet("test/all")]
         public async Task<IActionResult> GetAllAppointments()
         {

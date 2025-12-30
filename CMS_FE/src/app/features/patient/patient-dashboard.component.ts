@@ -967,9 +967,9 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
     }
     
     .appointments-sections {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
     }
     
     .appointments-section {
@@ -1105,6 +1105,7 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
     
     @media (max-width: 768px) {
       .appointments-sections {
+        grid-template-columns: 1fr;
         gap: 1rem;
       }
       

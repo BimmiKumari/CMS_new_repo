@@ -79,7 +79,12 @@ export class AppointmentService {
     }
 
     getAllAppointments(): Observable<any> {
-        return this.api.get<any>('Appointments');
+        return this.api.get<any>('Appointments/all');
+    }
+
+    // Fallback method to get appointments via patients endpoint
+    getAllAppointmentsViaPatients(): Observable<any> {
+        return this.api.get<any>('Appointments/patients');
     }
 
     updateAppointmentStatus(appointmentId: string, status: number): Observable<any> {
