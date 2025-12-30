@@ -209,5 +209,52 @@ namespace CMS.Application.Appointments.Services
                 CreatedAt = appointment.CreatedAt
             };
         }
+        public async Task<bool> DeleteAppointmentAsync(Guid appointmentId)
+        {
+            Console.WriteLine($"[APPOINTMENT] Request to delete appointment: {appointmentId}");
+            
+            var appointment = await _context.Appointments.FindAsync(appointmentId);
+            if (appointment == null)
+            {
+                Console.WriteLine($"[APPOINTMENT] Appointment not found: {appointmentId}");
+                return false;
+            }
+
+            try
+            {
+                // clean up related records first to maintain referential integrity if any foreign keys exist
+                // or just to keep data clean
+                
+                // 1. Remove from Queue
+                var queueEntries = await _context.PatientQueues.Where(q => q.AppointmentID == appointmentId).ToListAsync();
+                if (queueEntries.Any())
+                {
+                    _context.PatientQueues.RemoveRange(queueEntries);
+                    Console.WriteLine($"[APPOINTMENT] Removed {queueEntries.Count} queue entries");
+                }
+                
+                // 2. Remove Encounter (if it was created for this appointment)
+                // Note: Usually encounters are valuable medical records, but if the appointment is "cancelled" 
+                // before it happened, the encounter shell should validly be removed.
+                var encounters = await _context.PatientEncounters.Where(e => e.AppointmentID == appointmentId).ToListAsync();
+                if (encounters.Any())
+                {
+                    _context.PatientEncounters.RemoveRange(encounters);
+                    Console.WriteLine($"[APPOINTMENT] Removed {encounters.Count} encounter records");
+                }
+
+                // 3. Remove Appointment
+                _context.Appointments.Remove(appointment);
+                
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"[APPOINTMENT] Appointment deleted successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[APPOINTMENT ERROR] Failed to delete appointment: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

@@ -16,4 +16,8 @@ export class PatientService {
     return this.http.post<PatientResponse>(this.baseurl, patient);
   }
 
+  getPatientByUserId(userId: string): Observable<any> {
+    return this.http.get<any>(`${this.baseurl}/by-user/${userId}`);
+  }
+
 }

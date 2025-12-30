@@ -51,11 +51,11 @@ export class AppointmentService {
         try {
             const [time, period] = time12h.split(' ');
             const [hours, minutes] = time.split(':').map(Number);
-            
+
             let hour24 = hours;
             if (period === 'PM' && hours !== 12) hour24 += 12;
             if (period === 'AM' && hours === 12) hour24 = 0;
-            
+
             return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
         } catch {
             return time12h;
@@ -84,5 +84,9 @@ export class AppointmentService {
 
     updateAppointmentStatus(appointmentId: string, status: number): Observable<any> {
         return this.api.put<any>(`Appointments/${appointmentId}/status`, { Status: status });
+    }
+
+    cancelAppointment(appointmentId: string): Observable<any> {
+        return this.api.delete<any>(`Appointments/${appointmentId}`);
     }
 }

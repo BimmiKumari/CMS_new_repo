@@ -11,6 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterOutlet, Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -28,6 +29,7 @@ import { ProfileSetupComponent } from '../../shared/components/profile-setup.com
 import { HealthRecordsComponent } from './components/health-records/health-records.component';
 import { PatientProfileComponent } from './components/patient-profile/patient-profile.component';
 import { UserAvatarComponent } from '../../shared/components/user-avatar.component';
+import { CancellationSnackBarComponent } from '../../shared/components/cancellation-snack/cancellation-snack.component';
 
 @Component({
   selector: 'app-patient-dashboard',
@@ -253,6 +255,11 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar.compone
                           </div>
                         </div>
                       </mat-card-content>
+                      <mat-card-actions align="end">
+                        <button mat-button color="warn" (click)="cancelAppointment(appointment.appointmentID)">
+                          <mat-icon>cancel</mat-icon> Cancel
+                        </button>
+                      </mat-card-actions>
                     </mat-card>
                   </div>
 
@@ -1152,7 +1159,8 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     private appointmentService: AppointmentService,
     private router: Router,
     private route: ActivatedRoute,
-    private breakpointObserver: BreakpointObserver
+    private breakpointObserver: BreakpointObserver,
+    private snackBar: MatSnackBar
   ) {
     this.authService.currentUser$.pipe(takeUntil(this.destroyed)).subscribe(user => {
       this.currentUser = user;
@@ -1160,7 +1168,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
         this.loadAppointments();
       }
     });
-    
+
     this.breakpointObserver.observe([Breakpoints.Handset])
       .pipe(takeUntil(this.destroyed))
       .subscribe(result => {
@@ -1189,14 +1197,18 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadDoctors();
-    
+
     // Load appointments if user is already available
     if (this.currentUser) {
       this.loadAppointments();
     }
-    
+
     // Check for payment success from query params
     this.route.queryParams.subscribe(params => {
+      if (params['section']) {
+        this.setActiveSection(params['section']);
+      }
+
       if (params['paymentSuccess'] === 'true') {
         this.paymentDetails = {
           billPath: params['billPath'] || '',
@@ -1264,6 +1276,22 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   setActiveSection(section: string): void {
     this.activeSection = section;
+
+    // Clear query params so that subsequent navigations with params (like from 'View Appointments' button)
+    // are detected as changes by the router
+    this.router.navigate([], {
+      queryParams: {
+        section: null,
+        paymentSuccess: null,
+        billPath: null,
+        amount: null,
+        originalAmount: null,
+        discountAmount: null,
+        isFollowup: null
+      },
+      queryParamsHandling: 'merge'
+    });
+
     if (section === 'upcoming') {
       this.loadAppointments();
     }
@@ -1277,14 +1305,14 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   loadAppointments(): void {
     const patientId = this.currentUser?.id || this.currentUser?.userID;
-    
+
     if (!patientId) {
       this.loadingAppointments = false;
       return;
     }
 
     this.loadingAppointments = true;
-    
+
     this.appointmentService.getPatientAppointments(patientId).subscribe({
       next: (response: any) => {
         if (response && response.success && response.data) {
@@ -1294,7 +1322,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
         } else {
           this.appointments = [];
         }
-        
+
         this.categorizeAppointments();
         this.loadingAppointments = false;
       },
@@ -1310,19 +1338,19 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   categorizeAppointments(): void {
     const now = new Date();
-    
+
     this.scheduledAppointments = this.appointments.filter(apt => {
       const status = apt.status;
       // Include appointments with "Scheduled" status (string) or status 1 (number) and not completed
       return (status === "Scheduled" || status === 1) && status !== "Completed" && status !== 4;
     });
-    
+
     this.completedAppointments = this.appointments.filter(apt => {
       const status = apt.status;
       // Include ALL appointments with "Completed" status (string) or status 4 (number), regardless of type
       return status === "Completed" || status === 4;
     });
-    
+
     this.followUpAppointments = this.appointments.filter(apt => {
       const status = apt.status;
       // Only include follow-up appointments that are NOT completed
@@ -1392,7 +1420,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
       // Extract just the start time (before the dash) for easier matching
       const startTimeOnly = this.selectedTimeSlot!.split(' - ')[0];
-      
+
       // Store appointment details in session storage for use in patient details form
       const appointmentData = {
         doctorId: this.selectedDoctor!.id,
@@ -1443,6 +1471,35 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     } catch {
       return timeSpan;
     }
+  }
+
+  cancelAppointment(appointmentId: string): void {
+    const snackBarRef = this.snackBar.openFromComponent(CancellationSnackBarComponent, {
+      duration: 10000, // 10 seconds to decide
+      panelClass: ['cancellation-snackbar'],
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom'
+    });
+
+    snackBarRef.onAction().subscribe(() => {
+      // User confirmed (clicked "Yes, Cancel")
+      this.appointmentService.cancelAppointment(appointmentId).subscribe({
+        next: (response) => {
+          this.snackBar.open('Appointment cancelled successfully. Refund initiated.', 'Close', {
+            duration: 5000,
+            panelClass: ['success-snackbar']
+          });
+          this.loadAppointments(); // Refresh the list
+        },
+        error: (error) => {
+          console.error('Error cancelling appointment:', error);
+          this.snackBar.open('Failed to cancel appointment. Please try again.', 'Close', {
+            duration: 5000,
+            panelClass: ['error-snackbar']
+          });
+        }
+      });
+    });
   }
 
   logout(): void {

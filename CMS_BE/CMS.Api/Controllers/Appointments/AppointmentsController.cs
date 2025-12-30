@@ -180,6 +180,28 @@ namespace CMS.Api.Controllers.Appointments
                 return StatusCode(500, ApiResponse<AppointmentDto>.ErrorResponse("An error occurred"));
             }
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAppointment(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("Request to delete appointment: {AppointmentId}", id);
+                var result = await _appointmentService.DeleteAppointmentAsync(id);
+                
+                if (!result)
+                {
+                    return NotFound(ApiResponse<bool>.ErrorResponse("Appointment not found"));
+                }
+                
+                return Ok(ApiResponse<bool>.SuccessResponse(true, "Appointment deleted successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting appointment {Id}", id);
+                return StatusCode(500, ApiResponse<bool>.ErrorResponse("An error occurred"));
+            }
+        }
     }
 
     public class UpdateAppointmentStatusRequest
