@@ -8,6 +8,9 @@ namespace CMS.Domain.Billing.Enums
 {
     public enum BillStatusType
     {
-        Generated=1,Invoiced=2,Paid=3,Cancelled=4
+        Invoiced = 1,
+        UnVerifiedPayment = 2,
+        VerifiedPayment = 3,
+        Cancelled = 4
     }
 }

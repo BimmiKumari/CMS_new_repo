@@ -7,11 +7,8 @@ namespace CMS.Data
     {
         public CmsDbContext CreateDbContext(string[] args)
         {
-            // Load environment variables from .env file if it exists
-            DotNetEnv.Env.Load();
-
             var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-                ?? "Server=localhost;Database=CMS_Demo_Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+                ?? throw new InvalidOperationException("CONNECTION_STRING environment variable is required for migrations");
 
             var optionsBuilder = new DbContextOptionsBuilder<CmsDbContext>();
             optionsBuilder.UseSqlServer(connectionString);
@@ -20,4 +17,3 @@ namespace CMS.Data
         }
     }
 }
-

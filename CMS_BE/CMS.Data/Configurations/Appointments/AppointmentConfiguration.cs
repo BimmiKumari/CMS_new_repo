@@ -1,14 +1,8 @@
 using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Auth.Entities;
-using CMS.Domain.Clinic.Entities;
 using CMS.Domain.EMR.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CMS.Data.Configurations.Appointments
 {
@@ -16,81 +10,88 @@ namespace CMS.Data.Configurations.Appointments
     {
         public void Configure(EntityTypeBuilder<Appointment> builder)
         {
-            // Primary Key
             builder.HasKey(a => a.AppointmentID);
-            
-            // Foreign Keys
+
+            builder.Property(a => a.AppointmentID)
+                .HasDefaultValueSql("NEWID()");
+
+            builder.Property(a => a.PatientID)
+                .IsRequired();
+
+            builder.Property(a => a.DoctorID)
+                .IsRequired();
+
+            builder.Property(a => a.AppointmentDate)
+                .IsRequired();
+
+            builder.Property(a => a.StartTime)
+                .IsRequired();
+
+            builder.Property(a => a.EndTime)
+                .IsRequired();
+
+            builder.Property(a => a.Status)
+                .IsRequired()
+                .HasConversion<int>();
+
+            builder.Property(a => a.AppointmentType)
+                .IsRequired()
+                .HasConversion<int>();
+
+            builder.Property(a => a.GoogleCalendarEventID)
+                .HasMaxLength(255);
+
+            builder.Property(a => a.ReasonForVisit)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            builder.Property(a => a.ConsultedBefore)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(a => a.SeekingFollowup)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(a => a.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            builder.Property(a => a.UpdatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            builder.Property(a => a.CreatedBy);
+
+            builder.Property(a => a.IsDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(a => a.DeletedAt);
+
+            // FK relationships
             builder.HasOne<Patient>()
                 .WithMany()
                 .HasForeignKey(a => a.PatientID)
                 .OnDelete(DeleteBehavior.NoAction);
-                
+
             builder.HasOne<User>()
                 .WithMany()
                 .HasForeignKey(a => a.DoctorID)
                 .OnDelete(DeleteBehavior.NoAction);
-                
-            builder.HasOne<User>() // CreatedBy user
+
+            builder.HasOne<User>()
                 .WithMany()
                 .HasForeignKey(a => a.CreatedBy)
                 .OnDelete(DeleteBehavior.NoAction);
-            
-            // User ID foreign key (patient user)
-            builder.HasOne<User>()
-                .WithMany()
-                .HasForeignKey(a => a.user_id)
-                .OnDelete(DeleteBehavior.NoAction);
-            
-            // Add index on user_id for performance
-            builder.HasIndex(a => a.user_id);
-                
-            // Properties
-            builder.Property(a => a.ReasonForVisit)
-                .IsRequired()
-                .HasMaxLength(1000);
-                
-            builder.Property(a => a.GoogleCalendarEventID)
-                .HasMaxLength(255);
-                
-            builder.Property(a => a.CreatedAt)
-                .HasDefaultValueSql("GETUTCDATE()");
-                
-            builder.Property(a => a.UpdatedAt)
-                .HasDefaultValueSql("GETUTCDATE()");
-                
-            builder.Property(a => a.IsDeleted)
-                .HasDefaultValue(false);
-                
+
+            // Indexes
+            builder.HasIndex(a => a.PatientID);
+            builder.HasIndex(a => a.DoctorID);
+            builder.HasIndex(a => a.AppointmentDate);
+
             // Soft Delete Query Filter
             builder.HasQueryFilter(a => !a.IsDeleted);
-        }
-    }
-    
-    public class TimeSlotConfiguration : IEntityTypeConfiguration<TimeSlot>
-    {
-        public void Configure(EntityTypeBuilder<TimeSlot> builder)
-        {
-            // Primary Key
-            builder.HasKey(ts => ts.SlotID);
-            
-            // Foreign Key
-            builder.HasOne<User>()
-                .WithMany()
-                .HasForeignKey(ts => ts.DoctorID)
-                .OnDelete(DeleteBehavior.NoAction);
-                
-            // Properties
-            builder.Property(ts => ts.IsAvailable)
-                .HasDefaultValue(true);
-                
-            builder.Property(ts => ts.CreatedAt)
-                .HasDefaultValueSql("GETUTCDATE()");
-                
-            builder.Property(ts => ts.IsDeleted)
-                .HasDefaultValue(false);
-                
-            // Soft Delete Query Filter
-            builder.HasQueryFilter(ts => !ts.IsDeleted);
         }
     }
 }

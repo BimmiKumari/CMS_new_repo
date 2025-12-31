@@ -12,6 +12,9 @@ namespace CMS.Domain.EMR.Entities
         public Guid VitalSignsID { get; set; }
         
         [Required]
+        public Guid EMRRecordID { get; set; }
+        
+        [Required]
         public Guid EncounterID { get; set; }
         
         // Vital measurements
@@ -42,6 +45,7 @@ namespace CMS.Domain.EMR.Entities
         public DateTime? DeletedAt { get; set; }
         
         // Navigation properties
+        public EMRRecord? EMRRecord { get; set; }
         public PatientEncounter? Encounter { get; set; }
     }
 }

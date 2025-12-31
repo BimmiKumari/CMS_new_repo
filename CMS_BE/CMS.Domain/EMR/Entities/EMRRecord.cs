@@ -1,35 +1,26 @@
-using System.ComponentModel.DataAnnotations;
-using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Clinic.Entities;
-using CMS.Domain.Auth.Entities;
 
 namespace CMS.Domain.EMR.Entities
 {
-    /// <summary>
-    /// Main EMR record that aggregates all medical information for a patient
-    /// </summary>
     public class EMRRecord
     {
-        [Key]
         public Guid EMRRecordID { get; set; }
-        
-        // Nullable for migration - existing records may not have user_id
-        // TODO: Make required after data migration
-        public Guid? user_id { get; set; } // Primary link - one EMR per user
-        
-        public Guid? PatientID { get; set; } // Keep for backward compatibility, nullable
-        
-        public string? MedicalRecordNumber { get; set; } // Unique MRN for the patient
-        
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        
-        public bool IsDeleted { get; set; } = false;
+        public Guid PatientID { get; set; }
+        public string? MedicalRecordNumber { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }
         
-        // Navigation properties
-        public User? User { get; set; }
+        // Navigation Properties
         public Patient? Patient { get; set; }
-        public ICollection<PatientEncounter>? Encounters { get; set; }
+        public ICollection<PatientEncounter> Encounters { get; set; } = new List<PatientEncounter>();
+        public ICollection<Diagnosis> Diagnoses { get; set; } = new List<Diagnosis>();
+        public ICollection<LabTest> LabTests { get; set; } = new List<LabTest>();
+        public ICollection<MedicalReport> MedicalReports { get; set; } = new List<MedicalReport>();
+        public ICollection<Observation> Observations { get; set; } = new List<Observation>();
+        public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
+        public ICollection<TreatmentPlan> TreatmentPlans { get; set; } = new List<TreatmentPlan>();
+        public ICollection<VitalSigns> VitalSigns { get; set; } = new List<VitalSigns>();
     }
 }

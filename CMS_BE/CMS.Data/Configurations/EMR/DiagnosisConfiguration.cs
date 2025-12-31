@@ -28,8 +28,20 @@ namespace CMS.Data.Configurations.EMR
                 .HasConversion<int>();
             
             builder.HasIndex(e => e.EncounterID);
+            builder.HasIndex(e => e.EMRRecordID);
             builder.HasIndex(e => e.DiagnosisCode);
             builder.HasIndex(e => e.DiagnosedAt);
+            
+            // FK Relationships
+            builder.HasOne(d => d.EMRRecord)
+                .WithMany(emr => emr.Diagnoses)
+                .HasForeignKey(d => d.EMRRecordID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(d => d.Encounter)
+                .WithMany()
+                .HasForeignKey(d => d.EncounterID)
+                .OnDelete(DeleteBehavior.Restrict);
             
             builder.Property(e => e.CreatedAt)
                 .IsRequired()

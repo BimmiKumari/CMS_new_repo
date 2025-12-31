@@ -11,15 +11,12 @@ namespace CMS.Domain.Appointments.Entities
     {
         public Guid SlotID { get; set; }
         public Guid DoctorID { get; set; }
-        public DateTime SlotDate { get; set; }
+        public DateOnly SlotDate { get; set; }
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }
-        public bool IsAvailable { get; set; } = false;
+        public bool IsAvailable { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }
-
-
-        //public Doctor Doctor { get; set; }
     }
 }

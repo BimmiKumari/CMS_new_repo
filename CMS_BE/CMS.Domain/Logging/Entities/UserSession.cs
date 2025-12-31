@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CMS.Domain.Auth.Entities
+namespace CMS.Domain.Logging.Entities
 {
     public class UserSession
     {
@@ -22,7 +16,5 @@ namespace CMS.Domain.Auth.Entities
         public string LogoutReason { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public bool IsDeleted { get; set; }
-        public DateTime? DeletedAt { get; set; }
     }
 }

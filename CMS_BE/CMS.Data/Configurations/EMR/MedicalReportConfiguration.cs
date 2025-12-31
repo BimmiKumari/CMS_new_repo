@@ -25,8 +25,20 @@ namespace CMS.Data.Configurations.EMR
                 .HasMaxLength(2000);
             
             builder.HasIndex(e => e.EncounterID);
+            builder.HasIndex(e => e.EMRRecordID);
             builder.HasIndex(e => e.ReportType);
             builder.HasIndex(e => e.DateUploaded);
+            
+            // FK Relationships
+            builder.HasOne(m => m.EMRRecord)
+                .WithMany(emr => emr.MedicalReports)
+                .HasForeignKey(m => m.EMRRecordID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(m => m.Encounter)
+                .WithMany()
+                .HasForeignKey(m => m.EncounterID)
+                .OnDelete(DeleteBehavior.Restrict);
             
             builder.Property(e => e.CreatedAt)
                 .IsRequired()

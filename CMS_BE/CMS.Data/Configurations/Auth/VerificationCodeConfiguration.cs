@@ -8,13 +8,48 @@ namespace CMS.Data.Configurations.Auth
     {
         public void Configure(EntityTypeBuilder<VerificationCode> builder)
         {
-            builder.HasKey(v => v.Id);
-            builder.Property(v => v.Id).HasDefaultValueSql("NEWID()");
-            builder.Property(v => v.Code).IsRequired().HasMaxLength(10);
-            builder.Property(v => v.Purpose).IsRequired().HasMaxLength(50);
-            builder.Property(v => v.ExpiresAt).IsRequired();
-            builder.Property(v => v.IsUsed).HasDefaultValue(false);
-            builder.Property(v => v.CreatedAt).IsRequired();
+            builder.HasKey(v => v.VerificationCodeID);
+
+            builder.Property(v => v.VerificationCodeID)
+                .HasDefaultValueSql("NEWID()");
+
+            builder.Property(v => v.UserID)
+                .IsRequired();
+
+            builder.Property(v => v.Code)
+                .IsRequired()
+                .HasMaxLength(10);
+
+            builder.Property(v => v.Purpose)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            builder.Property(v => v.ExpiresAt)
+                .IsRequired();
+
+            builder.Property(v => v.IsUsed)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(v => v.CreatedAt)
+                .IsRequired();
+
+            builder.Property(v => v.IsDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(v => v.DeletedAt);
+
+            // FK relationship with NoAction delete behavior
+            builder.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(v => v.UserID)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.HasIndex(v => v.UserID);
+
+            // Soft Delete Query Filter
+            builder.HasQueryFilter(v => !v.IsDeleted);
         }
     }
 }

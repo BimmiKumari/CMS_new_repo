@@ -8,6 +8,11 @@ namespace CMS.Domain.Appointments.Enums
 {
     public enum AppointmentStatus
     {
-        Pending=0,Scheduled=1,Confirmed=2,Cancelled=3,Completed=4,NoShow=5
+        Pending = 0,
+        Scheduled = 1,
+        Confirmed = 2,
+        Cancelled = 3,
+        Completed = 4,
+        NoShow = 5
     }
 }

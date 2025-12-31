@@ -6,6 +6,8 @@ namespace CMS.Domain.Billing.Enums
         Card = 1,
         UPI = 2,
         Credit = 3,
-        Other = 4
+        Netbanking = 4,
+        Wallet = 5,
+        Other = 6
     }
 }
