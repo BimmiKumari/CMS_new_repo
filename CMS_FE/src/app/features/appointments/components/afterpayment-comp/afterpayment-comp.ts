@@ -17,8 +17,8 @@ export class AfterpaymentComp implements OnInit {
   @Input() paymentData: any = null;
   billPath: string = '';
   paymentDetails: any = {};
-  
-  constructor(private router: Router, private route: ActivatedRoute, private http: HttpClient) {}
+
+  constructor(private router: Router, private route: ActivatedRoute, private http: HttpClient) { }
 
   ngOnInit() {
     if (this.paymentData) {
@@ -57,7 +57,7 @@ export class AfterpaymentComp implements OnInit {
     }
   }
 
-  goHome() {
-    this.router.navigate(['/']);
+  viewAppointments() {
+    this.router.navigate(['/patient'], { queryParams: { section: 'upcoming' } });
   }
 }

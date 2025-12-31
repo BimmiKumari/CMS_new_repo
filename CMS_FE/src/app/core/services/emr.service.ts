@@ -21,6 +21,21 @@ import {
 export class EmrService {
     constructor(private api: ApiService) { }
 
+    // Debug method
+    debugUserData(userId: string): Observable<any> {
+        return this.api.get<any>(`Encounter/debug/user/${userId}`);
+    }
+
+    // Get encounters by user ID
+    getUserEncounters(userId: string): Observable<any> {
+        return this.api.get<any>(`Encounter/user/${userId}`);
+    }
+
+    // Patient lookup
+    getPatientByUserId(userId: string): Observable<any> {
+        return this.api.get<any>(`Patient/by-user/${userId}`);
+    }
+
     // Patient Queue
     getDoctorQueue(doctorId: string, date?: string): Observable<any> {
         let endpoint = `PatientQueue/doctor/${doctorId}`;

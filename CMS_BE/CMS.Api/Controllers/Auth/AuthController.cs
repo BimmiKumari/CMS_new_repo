@@ -7,6 +7,7 @@ using ExcelDataReader;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using CMS.Application.Auth.DTOs.Requests;
 using System.Security.Claims;
 
 namespace CMS.Api.Controllers.Auth
@@ -342,6 +343,95 @@ namespace CMS.Api.Controllers.Auth
             {
                 _logger.LogError(ex, "Error resending invitation for {Email}", request.Email);
                 throw;
+            }
+        }
+
+        [HttpGet("profile")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> GetProfile()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid user token"));
+                }
+
+                var result = await _authService.GetUserProfileAsync(userId);
+                return Ok(ApiResponse<object>.SuccessResponse(result, "Profile retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user profile");
+                throw;
+            }
+        }
+
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> UpdateProfile([FromBody] UpdateProfileRequest request)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid user token"));
+                }
+
+                await _authService.UpdateUserProfileAsync(userId, request);
+                return Ok(ApiResponse<object>.SuccessResponse(null, "Profile updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user profile");
+                throw;
+            }
+        }
+
+        [HttpPost("upload-profile-photo")]
+        [Consumes("multipart/form-data")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> UploadProfilePhoto()
+        {
+            try
+            {
+                _logger.LogInformation("Upload profile photo endpoint called (reading Request.Form.Files)");
+
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    _logger.LogWarning("Invalid user token in upload photo request");
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid user token"));
+                }
+
+                if (!Request.HasFormContentType)
+                {
+                    _logger.LogWarning("Request is not multipart/form-data");
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Invalid content type. Expecting multipart/form-data"));
+                }
+
+                var form = await Request.ReadFormAsync();
+                var file = form.Files.FirstOrDefault(f => f.Name == "photo") ?? form.Files.FirstOrDefault();
+
+                if (file == null || file.Length == 0)
+                {
+                    _logger.LogWarning("No photo found in Request.Form.Files (Count={Count})", form.Files.Count);
+                    return BadRequest(ApiResponse<object>.ErrorResponse("No photo provided"));
+                }
+
+                _logger.LogInformation("Uploading photo for user {UserId}, file key: {Key}, file name: {FileName}, size: {FileSize}", userId, file.Name, file.FileName, file.Length);
+
+                var result = await _authService.UploadProfilePhotoAsync(userId, file.OpenReadStream(), file.FileName);
+                _logger.LogInformation("Photo uploaded successfully, URL: {Url}", result);
+
+                return Ok(ApiResponse<object>.SuccessResponse(new { url = result }, "Profile photo updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading profile photo");
+                return BadRequest(ApiResponse<object>.ErrorResponse($"Upload failed: {ex.Message}"));
             }
         }
     }

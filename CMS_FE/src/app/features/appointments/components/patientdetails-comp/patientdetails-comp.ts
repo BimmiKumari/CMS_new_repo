@@ -15,6 +15,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { Patient } from '../../../../shared/models/Patient.model';
 import { PatientService } from '../../../../core/services/patient-service';
 import { PaymentService, PaymentRequest } from '../../../../core/services/payment.service';
+import { AppointmentService, CreateAppointmentDto } from '../../../../core/services/appointment.service';
 import { Router } from '@angular/router';
 import { CalendarService } from '../../../calendar/services/calendar.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -41,6 +42,7 @@ export class PatientdetailsComp implements OnInit {
     private fb: FormBuilder,
     private service: PatientService,
     private paymentService: PaymentService,
+    private appointmentService: AppointmentService,
     private calendarService: CalendarService,
     private router: Router,
     private snackBar: MatSnackBar,
@@ -73,6 +75,46 @@ export class PatientdetailsComp implements OnInit {
     const storedData = sessionStorage.getItem('pendingAppointment');
     if (storedData) {
       this.appointmentData = JSON.parse(storedData);
+
+      // Fetch existing patient details
+      const currentUser = this.authService.getCurrentUser();
+      const userId = currentUser?.userID || currentUser?.id;
+
+      if (userId) {
+        this.service.getPatientByUserId(userId).subscribe({
+          next: (response) => {
+            if (response.success && response.data) {
+              const patient = response.data;
+              console.log('Fetching patient details:', patient);
+
+              this.patientForm.patchValue({
+                date_of_birth: patient.date_of_birth ? new Date(patient.date_of_birth) : '',
+                sex: patient.sex,
+                country: patient.country,
+                pincode: patient.pincode,
+                city: patient.city,
+                state: patient.state,
+                address: patient.address,
+                marital_status: patient.marital_status,
+                blood_group: patient.blood_group,
+                allergies: patient.allergies,
+                chief_medical_complaints: patient.chief_medical_complaints,
+                consulted_before: patient.consulted_before,
+                // doctor_name: patient.doctor_name, // Keep blank or pre-fill if custom logic needed
+                last_review_date: patient.last_review_date ? new Date(patient.last_review_date) : '',
+                seeking_followup: patient.seeking_followup
+              });
+
+              this.snackBar.open('Patient details loaded', 'Close', { duration: 2000 });
+            }
+          },
+          error: (err) => {
+            console.log('No existing patient record found or error fetching:', err);
+            // Silent fail is okay here, user will just fill the form
+          }
+        });
+      }
+
     } else {
       // If no appointment data, redirect back to patient dashboard
       this.snackBar.open('Please select an appointment slot first', 'Close', { duration: 3000 });
@@ -142,7 +184,7 @@ export class PatientdetailsComp implements OnInit {
     // Format data for API
     const patientData = {
       user_id: userId || undefined, // Add user_id for EMR linking
-      date_of_birth: formValue.date_of_birth ? new Date(formValue.date_of_birth).toISOString().split('T')[0] : '1990-01-01',
+      date_of_birth: formValue.date_of_birth ? this.formatDateLocal(formValue.date_of_birth) : '1990-01-01',
       sex: formValue.sex || 'M',
       country: formValue.country || '',
       pincode: formValue.pincode || '',
@@ -155,7 +197,7 @@ export class PatientdetailsComp implements OnInit {
       chief_medical_complaints: formValue.chief_medical_complaints || '',
       consulted_before: formValue.consulted_before || false,
       doctor_name: formValue.doctor_name || '',
-      ...(formValue.last_review_date && { last_review_date: new Date(formValue.last_review_date).toISOString().split('T')[0] }),
+      ...(formValue.last_review_date && { last_review_date: this.formatDateLocal(formValue.last_review_date) }),
       seeking_followup: formValue.seeking_followup || false,
       profile_image_path: formValue.profile_image_path?.name || '',
       medical_reports_path: formValue.medical_reports_path?.name || ''
@@ -247,7 +289,7 @@ export class PatientdetailsComp implements OnInit {
     const formValue = this.patientForm.value;
     const patientData = {
       user_id: userId || undefined, // Add user_id for EMR linking
-      date_of_birth: formValue.date_of_birth ? new Date(formValue.date_of_birth).toISOString().split('T')[0] : '1990-01-01',
+      date_of_birth: formValue.date_of_birth ? this.formatDateLocal(formValue.date_of_birth) : '1990-01-01',
       sex: formValue.sex || 'M',
       country: formValue.country || '',
       pincode: formValue.pincode || '',
@@ -260,7 +302,7 @@ export class PatientdetailsComp implements OnInit {
       chief_medical_complaints: formValue.chief_medical_complaints || '',
       consulted_before: formValue.consulted_before || false,
       doctor_name: formValue.doctor_name || '',
-      ...(formValue.last_review_date && { last_review_date: new Date(formValue.last_review_date).toISOString().split('T')[0] }),
+      ...(formValue.last_review_date && { last_review_date: this.formatDateLocal(formValue.last_review_date) }),
       seeking_followup: formValue.seeking_followup || false,
       profile_image_path: formValue.profile_image_path?.name || '',
       medical_reports_path: formValue.medical_reports_path?.name || ''
@@ -334,23 +376,52 @@ export class PatientdetailsComp implements OnInit {
                 isFollowup: paymentRequest.isFollowup
               }).subscribe({
                 next: (verificationResult) => {
-                  this.snackBar.open('Payment successful! Appointment created.', 'Close', {
-                    duration: 3000,
-                    panelClass: ['success-snackbar']
-                  });
+                  console.log('Payment verified, now creating appointment...');
 
-                  // Clear session storage
-                  sessionStorage.removeItem('pendingAppointment');
+                  // Create appointment after successful payment
+                  const appointmentDto: CreateAppointmentDto = {
+                    patientID: userId || '',
+                    doctorID: paymentRequest.doctorId || '',
+                    appointmentDate: paymentRequest.appointmentDate || '',
+                    startTime: paymentRequest.startTime || '',
+                    endTime: paymentRequest.endTime || '',
+                    appointmentType: paymentRequest.isFollowup ? 1 : 0,
+                    reasonForVisit: paymentRequest.reasonForVisit || 'General Consultation'
+                  };
 
-                  // Navigate back to patient dashboard with success state
-                  this.router.navigate(['/patient'], {
-                    queryParams: {
-                      paymentSuccess: 'true',
-                      billPath: verificationResult.billPath || '',
-                      amount: paymentRequest.amount,
-                      originalAmount: paymentRequest.originalAmount,
-                      discountAmount: paymentRequest.discountAmount,
-                      isFollowup: paymentRequest.isFollowup
+                  console.log('Creating appointment with data:', appointmentDto);
+
+                  this.appointmentService.createAppointment(appointmentDto).subscribe({
+                    next: (appointmentResult) => {
+                      console.log('Appointment created successfully:', appointmentResult);
+
+                      this.snackBar.open('Payment successful! Appointment created.', 'Close', {
+                        duration: 3000,
+                        panelClass: ['success-snackbar']
+                      });
+
+                      // Clear session storage
+                      sessionStorage.removeItem('pendingAppointment');
+
+                      // Navigate back to patient dashboard with success state
+                      this.router.navigate(['/patient'], {
+                        queryParams: {
+                          paymentSuccess: 'true',
+                          billPath: verificationResult.billPath || '',
+                          amount: paymentRequest.amount,
+                          originalAmount: paymentRequest.originalAmount,
+                          discountAmount: paymentRequest.discountAmount,
+                          isFollowup: paymentRequest.isFollowup
+                        }
+                      });
+                    },
+                    error: (appointmentError) => {
+                      console.error('Appointment creation error:', appointmentError);
+                      this.snackBar.open('Payment successful but appointment creation failed. Please contact support.', 'Close', {
+                        duration: 5000,
+                        panelClass: ['error-snackbar']
+                      });
+                      this.isSubmitting = false;
                     }
                   });
                 },
@@ -418,5 +489,12 @@ export class PatientdetailsComp implements OnInit {
     } catch {
       return startTime;
     }
+  }
+
+  private formatDateLocal(date: Date): string {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

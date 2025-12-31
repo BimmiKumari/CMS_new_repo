@@ -9,6 +9,7 @@ using CMS.Domain.Clinic.Entities;
 using CMS.Domain.Clinic.Enums;
 using CMS.Domain.Shared.Exceptions;
 using Microsoft.Extensions.Logging;
+using CMS.Application.Shared.Interfaces;
 
 namespace CMS.Application.Auth.Services
 {
@@ -22,6 +23,7 @@ namespace CMS.Application.Auth.Services
         private readonly IJwtService _jwtService;
         private readonly IMapper _mapper;
         private readonly ILogger<AuthService> _logger;
+        private readonly ICloudinaryService _cloudinaryService;
 
         public AuthService(
             IUserRepository userRepository,
@@ -31,7 +33,8 @@ namespace CMS.Application.Auth.Services
             IEmailService emailService,
             IVerificationCodeRepository verificationCodeRepository,
             IDoctorRepository doctorRepository,
-            IInvitationRepository invitationRepository)
+            IInvitationRepository invitationRepository,
+            ICloudinaryService cloudinaryService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -41,6 +44,7 @@ namespace CMS.Application.Auth.Services
             _verificationCodeRepository = verificationCodeRepository;
             _doctorRepository = doctorRepository;
             _invitationRepository = invitationRepository;
+            _cloudinaryService = cloudinaryService;
         }
 
         public async Task<SignUpResponse> SignUpAsync(SignUpRequest request)
@@ -445,6 +449,53 @@ namespace CMS.Application.Auth.Services
 
             invitation.IsAccepted = true;
             await _invitationRepository.UpdateAsync(invitation);
+        }
+
+        public async Task<object> GetUserProfileAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) throw new NotFoundException("User not found.");
+
+            return new
+            {
+                name = user.Name,
+                email = user.Email,
+                phoneNumber = user.PhoneNumber,
+                profilePictureURL = user.ProfilePictureURL,
+                role = user.Role.ToString()
+            };
+        }
+
+        public async Task UpdateUserProfileAsync(Guid userId, CMS.Application.Auth.DTOs.Requests.UpdateProfileRequest request)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) throw new NotFoundException("User not found.");
+
+            user.Name = request.Name;
+            user.PhoneNumber = request.PhoneNumber;
+            if (!string.IsNullOrEmpty(request.ProfilePictureURL))
+            {
+                user.ProfilePictureURL = request.ProfilePictureURL;
+            }
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepository.UpdateAsync(user);
+        }
+
+        public async Task<string> UploadProfilePhotoAsync(Guid userId, Stream fileStream, string fileName)
+        {
+            var cloudinaryUrl = await _cloudinaryService.UploadImageAsync(fileStream, fileName);
+            
+            // Update user's profile picture URL
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user != null)
+            {
+                user.ProfilePictureURL = cloudinaryUrl;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user);
+            }
+
+            return cloudinaryUrl;
         }
 
         private string GenerateTemporaryPassword()

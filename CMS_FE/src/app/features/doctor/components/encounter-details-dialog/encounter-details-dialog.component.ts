@@ -163,8 +163,8 @@ import { EncounterDetail } from '../../../emr/models/emr.models';
       <div class="section" *ngIf="data.treatmentPlans?.length">
         <h3 class="section-title"><mat-icon>assignment</mat-icon> Treatment Plan</h3>
         <div *ngFor="let tp of data.treatmentPlans" class="tp-item">
-          <p class="tp-desc">{{ tp.description }}</p>
-          <p class="tp-goal" *ngIf="tp.goal"><strong>Goal:</strong> {{ tp.goal }}</p>
+          <p class="tp-desc">{{ tp.planDescription }}</p>
+          <p class="tp-goal" *ngIf="tp.goals"><strong>Goal:</strong> {{ tp.goals }}</p>
         </div>
       </div>
 

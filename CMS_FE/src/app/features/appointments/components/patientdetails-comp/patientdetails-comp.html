@@ -97,43 +97,11 @@
     <!-- Medical Complaints -->
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Chief Medical Complaints</mat-label>
-      <textarea matInput rows="4" cdkTextareaAutosize cdkAutosizeMinRows="4" 
-        formControlName="chief_medical_complaints" placeholder="Describe your medical complaints in detail..."></textarea>
+      <textarea matInput rows="4" cdkTextareaAutosize cdkAutosizeMinRows="4" formControlName="chief_medical_complaints"
+        placeholder="Describe your medical complaints in detail..."></textarea>
     </mat-form-field>
 
-    <!-- Previous Consultation -->
-    <div class="radio-group">
-      <label>Consulted with us before?</label>
-      <mat-radio-group formControlName="consulted_before">
-        <mat-radio-button [value]="true">Yes</mat-radio-button>
-        <mat-radio-button [value]="false">No</mat-radio-button>
-      </mat-radio-group>
-    </div>
-
-    <!-- Conditional Fields -->
-    <div class="form-row" *ngIf="patientForm.get('consulted_before')?.value">
-      <mat-form-field appearance="outline">
-        <mat-label>Doctor Name</mat-label>
-        <input matInput formControlName="doctor_name" placeholder="Enter doctor name">
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Last Review Date</mat-label>
-        <input matInput [matDatepicker]="reviewPicker" [max]="maxDate" formControlName="last_review_date"
-          placeholder="Select date">
-        <mat-datepicker-toggle matSuffix [for]="reviewPicker"></mat-datepicker-toggle>
-        <mat-datepicker #reviewPicker></mat-datepicker>
-      </mat-form-field>
-    </div>
-
-    <!-- Follow-up -->
-    <div class="radio-group">
-      <label>Seeking follow-up?</label>
-      <mat-radio-group formControlName="seeking_followup">
-        <mat-radio-button [value]="true">Yes</mat-radio-button>
-        <mat-radio-button [value]="false">No</mat-radio-button>
-      </mat-radio-group>
-    </div>
+    <!-- Previous Consultation and Follow-up fields removed as per requirements -->
 
     <!-- File Uploads -->
     <div class="file-upload-section">
@@ -169,10 +137,7 @@
         <span>Doctor Appointment Fee</span>
         <span>₹500</span>
       </div>
-      <div class="bill-item" *ngIf="patientForm.get('seeking_followup')?.value">
-        <span>Follow-up Discount (30%)</span>
-        <span style="color: green;">-₹{{getDiscount()}}</span>
-      </div>
+      <!-- Discount row removed -->
       <div class="bill-total">
         <span><strong>Total Amount</strong></span>
         <span><strong>₹{{getPaymentAmount()}}</strong></span>

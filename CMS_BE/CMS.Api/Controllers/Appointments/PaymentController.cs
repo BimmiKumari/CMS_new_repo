@@ -285,11 +285,11 @@ namespace CMS.Controllers
 
                         Console.WriteLine($"✅ Patient ID parsed: {patientId}");
 
-                        // Parse appointment date
+                        // Parse appointment date without timezone conversion
                         DateTime appointmentDate = DateTime.UtcNow.Date;
                         if (!string.IsNullOrEmpty(paymentData.AppointmentDate))
                         {
-                            if (DateTime.TryParse(paymentData.AppointmentDate, out var parsedDate))
+                            if (DateTime.TryParseExact(paymentData.AppointmentDate, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var parsedDate))
                             {
                                 appointmentDate = parsedDate.Date;
                                 Console.WriteLine($"✅ Appointment date parsed: {appointmentDate:yyyy-MM-dd}");
@@ -321,8 +321,8 @@ namespace CMS.Controllers
                             user_id = paymentData.UserIdGuid, // Add user_id for EMR linking
                             DoctorID = paymentData.DoctorIdGuid.Value,
                             AppointmentDate = appointmentDate,
-                            StartTime = startTime,
-                            EndTime = endTime,
+                            StartTime = startTime.ToString(@"hh\:mm\:ss"),
+                            EndTime = endTime.ToString(@"hh\:mm\:ss"),
                             AppointmentType = isFollowup ? AppointmentType.FollowUp : AppointmentType.Consultation,
                             ReasonForVisit = paymentData.ReasonForVisit ?? "General Consultation"
                         };

@@ -27,6 +27,23 @@ namespace CMS.Application.EMR.DTOs
         public List<MedicalReportDto> MedicalReports { get; set; } = new();
     }
 
+    public class EncounterSummaryDto
+    {
+        public Guid EncounterID { get; set; }
+        public Guid AppointmentID { get; set; }
+        public DateTime EncounterDate { get; set; }
+        public EncounterType EncounterType { get; set; }
+        public string DoctorName { get; set; } = string.Empty;
+        public string? ChiefComplaint { get; set; }
+        public string? ClinicalNotes { get; set; }
+        public List<DiagnosisDto> Diagnoses { get; set; } = new();
+        public List<LabTestDto> LabTests { get; set; } = new();
+        public List<ObservationDto> Observations { get; set; } = new();
+        public List<PrescriptionDto> Prescriptions { get; set; } = new();
+        public List<TreatmentPlanDto> TreatmentPlans { get; set; } = new();
+        public List<VitalSignsDto> VitalSigns { get; set; } = new();
+    }
+
     public class CreateEncounterDto
     {
         public Guid PatientID { get; set; }

@@ -116,6 +116,7 @@ builder.Services.AddScoped<IVerificationCodeRepository, CMS.Infrastructure.Auth.
 builder.Services.AddScoped<IInvitationRepository, CMS.Infrastructure.Auth.Repositories.InvitationRepository>();
 builder.Services.AddScoped<IJwtService, CMS.Infrastructure.Auth.Services.JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<CMS.Application.Shared.Interfaces.ICloudinaryService, CMS.Infrastructure.Shared.Services.CloudinaryService>();
 
 // Clinic Services
 builder.Services.AddScoped<CMS.Application.Clinic.Interfaces.IDoctorRepository, CMS.Infrastructure.Clinic.Repositories.DoctorRepository>();
@@ -138,7 +139,30 @@ builder.Services.AddScoped<CMS.Application.EMR.Interfaces.IEMRService, CMS.Appli
 builder.Services.AddScoped<CMS.Application.EMR.Interfaces.IEncounterService, CMS.Application.EMR.Services.EncounterService>();
 builder.Services.AddScoped<CMS.Application.EMR.Interfaces.IPatientQueueService, CMS.Application.EMR.Services.PatientQueueService>();
 
-// Notification Services
+// All entities now use the single CmsDbContext
+builder.Services.AddDistributedMemoryCache();
+// Configure SendGrid from environment variables
+builder.Services.Configure<SendGridConfig>(options =>
+{
+    options.ApiKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY") ?? string.Empty;
+    options.FromEmail = Environment.GetEnvironmentVariable("SENDGRID_FROM_EMAIL") ?? string.Empty;
+    options.FromName = Environment.GetEnvironmentVariable("SENDGRID_FROM_NAME") ?? "CMS";
+});
+
+// Configure Twilio from environment variables
+builder.Services.Configure<TwilioConfig>(options =>
+{
+    options.AccountSid = Environment.GetEnvironmentVariable("TWILIO_ACCOUNT_SID") ?? Environment.GetEnvironmentVariable("AccountSid") ?? string.Empty;
+    options.AuthToken = Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN") ?? Environment.GetEnvironmentVariable("AuthToken") ?? string.Empty;
+    options.FromNumber = Environment.GetEnvironmentVariable("TWILIO_FROM_NUMBER") ?? Environment.GetEnvironmentVariable("FromNumber") ?? string.Empty;
+
+    // Log configuration for debugging
+    Console.WriteLine($"[Twilio Config] AccountSid: {(string.IsNullOrEmpty(options.AccountSid) ? "MISSING" : "SET")}");
+    Console.WriteLine($"[Twilio Config] AuthToken: {(string.IsNullOrEmpty(options.AuthToken) ? "MISSING" : "SET")}");
+    Console.WriteLine($"[Twilio Config] FromNumber: {options.FromNumber}");
+});
+
+// Notification repositories
 builder.Services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationQueueRepository, NotificationQueueRepository>();

@@ -10,7 +10,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { SendNotificationComponent } from '../notifications/components/send-notification/send-notification.component';
-import { PatientQueueComponent } from '../doctor/components/patient-queue/patient-queue.component';
+import { PatientManagementComponent } from './components/patient-management.component';
+import { CheckAppointmentsComponent } from './components/check-appointments.component';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -29,7 +30,8 @@ import { takeUntil } from 'rxjs/operators';
     MatTooltipModule,
     RouterOutlet,
     SendNotificationComponent,
-    PatientQueueComponent
+    PatientManagementComponent,
+    CheckAppointmentsComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -39,25 +41,17 @@ import { takeUntil } from 'rxjs/operators';
           <span class="brand-text">Staff Portal</span>
         </mat-toolbar>
         <mat-nav-list class="nav-list">
-          <a mat-list-item (click)="setActiveSection('appointments'); closeSidenavIfHandset()" [class.active]="activeSection === 'appointments'">
-            <mat-icon matListItemIcon>event</mat-icon>
-            <span matListItemTitle>Manage Appointments</span>
-          </a>
           <a mat-list-item (click)="setActiveSection('patients'); closeSidenavIfHandset()" [class.active]="activeSection === 'patients'">
             <mat-icon matListItemIcon>people</mat-icon>
             <span matListItemTitle>Patient Management</span>
           </a>
+          <a mat-list-item (click)="setActiveSection('appointments'); closeSidenavIfHandset()" [class.active]="activeSection === 'appointments'">
+            <mat-icon matListItemIcon>event</mat-icon>
+            <span matListItemTitle>Check Appointments</span>
+          </a>
           <a mat-list-item (click)="setActiveSection('reminders'); closeSidenavIfHandset()" [class.active]="activeSection === 'reminders'">
-            <mat-icon matListItemIcon>notifications</mat-icon>
-            <span matListItemTitle>Reminder Management</span>
-          </a>
-          <a mat-list-item (click)="setActiveSection('billing'); closeSidenavIfHandset()" [class.active]="activeSection === 'billing'">
-            <mat-icon matListItemIcon>receipt</mat-icon>
-            <span matListItemTitle>Billing</span>
-          </a>
-          <a mat-list-item (click)="setActiveSection('reports'); closeSidenavIfHandset()" [class.active]="activeSection === 'reports'">
-            <mat-icon matListItemIcon>assessment</mat-icon>
-            <span matListItemTitle>Reports</span>
+            <mat-icon matListItemIcon>chat</mat-icon>
+            <span matListItemTitle>Communication</span>
           </a>
         </mat-nav-list>
       </mat-sidenav>
@@ -80,45 +74,16 @@ import { takeUntil } from 'rxjs/operators';
 
         <div class="content">
           <div [ngSwitch]="activeSection">
-            <div *ngSwitchCase="'appointments'">
-              <app-patient-queue></app-patient-queue>
+            <div *ngSwitchCase="'patients'">
+              <app-patient-management (navigateToSection)="setActiveSection($event)"></app-patient-management>
             </div>
 
-            <div *ngSwitchCase="'patients'">
-              <mat-card>
-                <mat-card-header>
-                  <mat-card-title>Patient Management</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <p>Register new patients and update patient information.</p>
-                </mat-card-content>
-              </mat-card>
+            <div *ngSwitchCase="'appointments'">
+              <app-check-appointments></app-check-appointments>
             </div>
 
             <div *ngSwitchCase="'reminders'">
               <app-send-notification></app-send-notification>
-            </div>
-
-            <div *ngSwitchCase="'billing'">
-              <mat-card>
-                <mat-card-header>
-                  <mat-card-title>Billing Management</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <p>Process payments and manage billing records.</p>
-                </mat-card-content>
-              </mat-card>
-            </div>
-
-            <div *ngSwitchCase="'reports'">
-              <mat-card>
-                <mat-card-header>
-                  <mat-card-title>Reports</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <p>Generate and view various reports.</p>
-                </mat-card-content>
-              </mat-card>
             </div>
 
             <div *ngSwitchDefault>
@@ -447,7 +412,7 @@ import { takeUntil } from 'rxjs/operators';
 })
 export class StaffDashboardComponent implements OnDestroy {
   @ViewChild('drawer') drawer!: MatSidenav;
-  activeSection = 'appointments';
+  activeSection = 'patients';
   currentUser: any;
   isHandset = false;
   private destroyed = new Subject<void>();
@@ -457,7 +422,9 @@ export class StaffDashboardComponent implements OnDestroy {
     private router: Router,
     private breakpointObserver: BreakpointObserver
   ) {
-    this.currentUser = this.authService.getCurrentUser();
+    this.authService.currentUser$.pipe(takeUntil(this.destroyed)).subscribe(user => {
+      this.currentUser = user;
+    });
     
     this.breakpointObserver.observe([Breakpoints.Handset])
       .pipe(takeUntil(this.destroyed))
@@ -482,6 +449,8 @@ export class StaffDashboardComponent implements OnDestroy {
   }
 
   getUserAvatar(): string {
+    const url = this.currentUser?.profilePictureURL;
+    if (url && typeof url === 'string' && url.trim().length > 0) return url;
     const name = this.currentUser?.name || 'Staff';
     return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981&textColor=ffffff`;
   }

@@ -621,6 +621,8 @@ export class AdminDashboardComponent implements OnDestroy {
   }
 
   getUserAvatar(): string {
+    const url = this.currentUser?.profilePictureURL;
+    if (url && typeof url === 'string' && url.trim().length > 0) return url;
     const name = this.currentUser?.name || 'Admin';
     return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981&textColor=ffffff`;
   }

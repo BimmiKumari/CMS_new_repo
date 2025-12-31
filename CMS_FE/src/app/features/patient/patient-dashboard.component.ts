@@ -11,6 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterOutlet, Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -23,6 +24,12 @@ import { AfterpaymentComp } from '../appointments/components/afterpayment-comp/a
 import { CalendarService, Doctor } from '../calendar/services/calendar.service';
 import { SPECIALIZATIONS } from '../../shared/constants/specializations';
 import { ActivatedRoute } from '@angular/router';
+import { AppointmentService } from '../../core/services/appointment.service';
+import { ProfileSetupComponent } from '../../shared/components/profile-setup.component';
+import { HealthRecordsComponent } from './components/health-records/health-records.component';
+import { PatientProfileComponent } from './components/patient-profile/patient-profile.component';
+import { UserAvatarComponent } from '../../shared/components/user-avatar.component';
+import { CancellationSnackBarComponent } from '../../shared/components/cancellation-snack/cancellation-snack.component';
 
 @Component({
   selector: 'app-patient-dashboard',
@@ -44,7 +51,10 @@ import { ActivatedRoute } from '@angular/router';
     AfterpaymentComp,
     MatFormFieldModule,
     MatSelectModule,
-    MatTooltipModule
+    MatTooltipModule,
+    HealthRecordsComponent,
+    PatientProfileComponent,
+    UserAvatarComponent
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
@@ -63,13 +73,13 @@ import { ActivatedRoute } from '@angular/router';
             <mat-icon matListItemIcon>schedule</mat-icon>
             <span matListItemTitle>My Appointments</span>
           </a>
-          <a mat-list-item (click)="setActiveSection('check-in'); closeSidenavIfHandset()" [class.active]="activeSection === 'check-in'">
-            <mat-icon matListItemIcon>login</mat-icon>
-            <span matListItemTitle>Check-in</span>
-          </a>
           <a mat-list-item (click)="setActiveSection('health-records'); closeSidenavIfHandset()" [class.active]="activeSection === 'health-records'">
             <mat-icon matListItemIcon>folder_shared</mat-icon>
-            <span matListItemTitle>Health Records</span>
+            <span matListItemTitle>My Health Records</span>
+          </a>
+          <a mat-list-item (click)="setActiveSection('profile'); closeSidenavIfHandset()" [class.active]="activeSection === 'profile'">
+            <mat-icon matListItemIcon>person</mat-icon>
+            <span matListItemTitle>My Profile</span>
           </a>
         </mat-nav-list>
 
@@ -84,7 +94,11 @@ import { ActivatedRoute } from '@angular/router';
           <span class="toolbar-title">Patient Dashboard</span>
           <span class="spacer"></span>
           <div class="user-info">
-            <img [src]="getUserAvatar()" alt="User Avatar" class="user-avatar">
+            <app-user-avatar
+              [profilePictureURL]="currentUser?.profilePictureURL || ''"
+              [name]="currentUser?.name || 'Patient'"
+              [size]="36">
+            </app-user-avatar>
             <span class="user-name">{{ currentUser?.name || 'Patient' }}</span>
             <button mat-icon-button (click)="logout()" class="logout-btn" matTooltip="Logout">
               <mat-icon>logout</mat-icon>
@@ -195,34 +209,135 @@ import { ActivatedRoute } from '@angular/router';
               </div>
             </div>
 
-            <!-- Upcoming Appointments -->
+            <!-- My Appointments -->
             <div *ngSwitchCase="'upcoming'">
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>No upcoming appointments found. Start by booking one!</p>
-                  <button mat-stroked-button color="primary" (click)="setActiveSection('book-appointment')">
-                    Book Now
-                  </button>
-                </mat-card-content>
-              </mat-card>
-            </div>
+              <div class="appointments-container">
+                <div class="appointments-header">
+                  <h1>My Appointments</h1>
+                  <p>View your scheduled, completed, and follow-up appointments</p>
+                </div>
 
-            <!-- Check-in -->
-            <div *ngSwitchCase="'check-in'">
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>Check-in for your today's appointments.</p>
-                </mat-card-content>
-              </mat-card>
+                <div *ngIf="loadingAppointments" class="loading-state">
+                  <mat-icon class="spin">sync</mat-icon>
+                  <p>Loading appointments...</p>
+                </div>
+
+                <div *ngIf="!loadingAppointments" class="appointments-sections">
+                  <!-- Scheduled Appointments -->
+                  <div class="appointments-section">
+                    <h2><mat-icon>schedule</mat-icon> Scheduled Appointments</h2>
+                    <div *ngIf="scheduledAppointments.length === 0" class="no-appointments">
+                      <mat-icon>event_available</mat-icon>
+                      <p>No scheduled appointments</p>
+                      <button mat-stroked-button color="primary" (click)="setActiveSection('book-appointment')">
+                        Book Appointment
+                      </button>
+                    </div>
+                    <mat-card *ngFor="let appointment of scheduledAppointments" class="appointment-card scheduled">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="scheduled-icon">schedule</mat-icon>
+                        <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
+                        <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="appointment-details">
+                          <div class="detail-item">
+                            <mat-icon>access_time</mat-icon>
+                            <span>{{ formatTime(appointment.startTime) }} - {{ formatTime(appointment.endTime) }}</span>
+                          </div>
+                          <div class="detail-item">
+                            <mat-icon>info</mat-icon>
+                            <span class="status-badge" [ngClass]="getStatusClass(appointment)">{{ getStatusText(appointment) }}</span>
+                          </div>
+                          <div class="detail-item" *ngIf="appointment.reasonForVisit">
+                            <mat-icon>description</mat-icon>
+                            <span>{{ appointment.reasonForVisit }}</span>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                      <mat-card-actions align="end">
+                        <button mat-button color="warn" (click)="cancelAppointment(appointment.appointmentID)">
+                          <mat-icon>cancel</mat-icon> Cancel
+                        </button>
+                      </mat-card-actions>
+                    </mat-card>
+                  </div>
+
+                  <!-- Completed Appointments -->
+                  <div class="appointments-section">
+                    <h2><mat-icon>check_circle</mat-icon> Completed Appointments</h2>
+                    <div *ngIf="completedAppointments.length === 0" class="no-appointments">
+                      <mat-icon>history</mat-icon>
+                      <p>No completed appointments</p>
+                    </div>
+                    <mat-card *ngFor="let appointment of completedAppointments" class="appointment-card completed">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="completed-icon">check_circle</mat-icon>
+                        <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
+                        <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="appointment-details">
+                          <div class="detail-item">
+                            <mat-icon>access_time</mat-icon>
+                            <span>{{ formatTime(appointment.startTime) }} - {{ formatTime(appointment.endTime) }}</span>
+                          </div>
+                          <div class="detail-item">
+                            <mat-icon>info</mat-icon>
+                            <span class="status-badge" [ngClass]="getStatusClass(appointment)">{{ getStatusText(appointment) }}</span>
+                          </div>
+                          <div class="detail-item" *ngIf="appointment.reasonForVisit">
+                            <mat-icon>description</mat-icon>
+                            <span>{{ appointment.reasonForVisit }}</span>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  </div>
+
+                  <!-- Follow-up Appointments -->
+                  <div class="appointments-section">
+                    <h2><mat-icon>refresh</mat-icon> Follow-up Appointments</h2>
+                    <div *ngIf="followUpAppointments.length === 0" class="no-appointments">
+                      <mat-icon>refresh</mat-icon>
+                      <p>No follow-up appointments</p>
+                    </div>
+                    <mat-card *ngFor="let appointment of followUpAppointments" class="appointment-card followup">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="followup-icon">refresh</mat-icon>
+                        <mat-card-title>Dr. {{ appointment.doctorName }}</mat-card-title>
+                        <mat-card-subtitle>{{ appointment.appointmentDate | date:'fullDate' }}</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="appointment-details">
+                          <div class="detail-item">
+                            <mat-icon>access_time</mat-icon>
+                            <span>{{ formatTime(appointment.startTime) }} - {{ formatTime(appointment.endTime) }}</span>
+                          </div>
+                          <div class="detail-item">
+                            <mat-icon>info</mat-icon>
+                            <span class="status-badge" [ngClass]="getStatusClass(appointment)">{{ getStatusText(appointment) }}</span>
+                          </div>
+                          <div class="detail-item" *ngIf="appointment.reasonForVisit">
+                            <mat-icon>description</mat-icon>
+                            <span>{{ appointment.reasonForVisit }}</span>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Health Records -->
             <div *ngSwitchCase="'health-records'">
-              <mat-card class="info-card">
-                <mat-card-content>
-                  <p>Access your medical history and lab results here.</p>
-                </mat-card-content>
-              </mat-card>
+              <app-health-records></app-health-records>
+            </div>
+
+            <!-- My Profile -->
+            <div *ngSwitchCase="'profile'">
+              <app-patient-profile></app-patient-profile>
             </div>
 
             <!-- Welcome Screen -->
@@ -833,6 +948,182 @@ import { ActivatedRoute } from '@angular/router';
         color: #ffffff;
       }
     }
+    
+    /* Appointments Styles */
+    .appointments-container {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .appointments-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .appointments-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 0.5rem;
+    }
+    
+    .appointments-header p {
+      color: #64748b;
+      font-size: 1rem;
+    }
+    
+    .appointments-sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
+    }
+    
+    .appointments-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .appointments-section h2 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #f3f4f6;
+    }
+    
+    .appointment-card {
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+    }
+    
+    .appointment-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .appointment-card.scheduled {
+      border-left: 4px solid #3b82f6;
+    }
+    
+    .appointment-card.completed {
+      border-left: 4px solid #10b981;
+    }
+    
+    .appointment-card.followup {
+      border-left: 4px solid #f59e0b;
+    }
+    
+    .scheduled-icon {
+      background: #3b82f6 !important;
+      color: white !important;
+    }
+    
+    .completed-icon {
+      background: #10b981 !important;
+      color: white !important;
+    }
+    
+    .followup-icon {
+      background: #f59e0b !important;
+      color: white !important;
+    }
+    
+    .appointment-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    
+    .detail-item mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #10b981;
+    }
+    
+    .no-appointments {
+      text-align: center;
+      padding: 2rem;
+      color: #64748b;
+    }
+    
+    .no-appointments mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 1rem;
+      color: #d1d5db;
+    }
+    
+    .status-badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .status-waiting {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-progress {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .status-completed {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    
+    .status-cancelled {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .status-noshow {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    
+    .status-scheduled {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    
+    @media (max-width: 768px) {
+      .appointments-sections {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .appointments-section {
+        padding: 1rem;
+      }
+      
+      .appointments-container {
+        padding: 1rem;
+      }
+    }
   `]
 })
 export class PatientDashboardComponent implements OnInit, OnDestroy {
@@ -856,15 +1147,29 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   selectedSpecialization: string = '';
   timeSlots: string[] = [];
 
+  // Appointments data
+  appointments: any[] = [];
+  scheduledAppointments: any[] = [];
+  completedAppointments: any[] = [];
+  followUpAppointments: any[] = [];
+  loadingAppointments = false;
+
   constructor(
     private authService: AuthService,
     private calendarService: CalendarService,
+    private appointmentService: AppointmentService,
     private router: Router,
     private route: ActivatedRoute,
-    private breakpointObserver: BreakpointObserver
+    private breakpointObserver: BreakpointObserver,
+    private snackBar: MatSnackBar
   ) {
-    this.currentUser = this.authService.getCurrentUser();
-    
+    this.authService.currentUser$.pipe(takeUntil(this.destroyed)).subscribe(user => {
+      this.currentUser = user;
+      if (user && this.activeSection === 'upcoming') {
+        this.loadAppointments();
+      }
+    });
+
     this.breakpointObserver.observe([Breakpoints.Handset])
       .pipe(takeUntil(this.destroyed))
       .subscribe(result => {
@@ -884,15 +1189,27 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   getUserAvatar(): string {
+    // Prefer uploaded profile picture URL if available
+    const url = this.currentUser?.profilePictureURL;
+    if (url && typeof url === 'string' && url.trim().length > 0) return url;
     const name = this.currentUser?.name || 'Patient';
     return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981&textColor=ffffff`;
   }
 
   ngOnInit(): void {
     this.loadDoctors();
-    
+
+    // Load appointments if user is already available
+    if (this.currentUser) {
+      this.loadAppointments();
+    }
+
     // Check for payment success from query params
     this.route.queryParams.subscribe(params => {
+      if (params['section']) {
+        this.setActiveSection(params['section']);
+      }
+
       if (params['paymentSuccess'] === 'true') {
         this.paymentDetails = {
           billPath: params['billPath'] || '',
@@ -960,11 +1277,122 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   setActiveSection(section: string): void {
     this.activeSection = section;
+
+    // Clear query params so that subsequent navigations with params (like from 'View Appointments' button)
+    // are detected as changes by the router
+    this.router.navigate([], {
+      queryParams: {
+        section: null,
+        paymentSuccess: null,
+        billPath: null,
+        amount: null,
+        originalAmount: null,
+        discountAmount: null,
+        isFollowup: null
+      },
+      queryParamsHandling: 'merge'
+    });
+
+    if (section === 'upcoming') {
+      this.loadAppointments();
+    }
     if (section !== 'book-appointment') {
       this.selectedDoctor = undefined;
       this.selectedDate = undefined;
       this.selectedTimeSlot = undefined;
       this.timeSlots = [];
+    }
+  }
+
+  loadAppointments(): void {
+    const patientId = this.currentUser?.id || this.currentUser?.userID;
+
+    if (!patientId) {
+      this.loadingAppointments = false;
+      return;
+    }
+
+    this.loadingAppointments = true;
+
+    this.appointmentService.getPatientAppointments(patientId).subscribe({
+      next: (response: any) => {
+        if (response && response.success && response.data) {
+          this.appointments = response.data;
+        } else if (response && Array.isArray(response)) {
+          this.appointments = response;
+        } else {
+          this.appointments = [];
+        }
+
+        this.categorizeAppointments();
+        this.loadingAppointments = false;
+      },
+      error: (error) => {
+        this.appointments = [];
+        this.scheduledAppointments = [];
+        this.completedAppointments = [];
+        this.followUpAppointments = [];
+        this.loadingAppointments = false;
+      }
+    });
+  }
+
+  categorizeAppointments(): void {
+    const now = new Date();
+
+    this.scheduledAppointments = this.appointments.filter(apt => {
+      const status = apt.status;
+      // Include appointments with "Scheduled" status (string) or status 1 (number) and not completed
+      return (status === "Scheduled" || status === 1) && status !== "Completed" && status !== 4;
+    });
+
+    this.completedAppointments = this.appointments.filter(apt => {
+      const status = apt.status;
+      // Include ALL appointments with "Completed" status (string) or status 4 (number), regardless of type
+      return status === "Completed" || status === 4;
+    });
+
+    this.followUpAppointments = this.appointments.filter(apt => {
+      const status = apt.status;
+      // Only include follow-up appointments that are NOT completed
+      return apt.appointmentType === "FollowUp" && status !== "Completed" && status !== 4;
+    });
+  }
+
+  getStatusText(appointment: any): string {
+    const status = appointment.status;
+    if (typeof status === 'string') {
+      return status;
+    }
+    switch (status) {
+      case 1: return 'Waiting';
+      case 2: return 'In Progress';
+      case 3: return 'Completed';
+      case 4: return 'Cancelled';
+      case 5: return 'No Show';
+      default: return 'Scheduled';
+    }
+  }
+
+  getStatusClass(appointment: any): string {
+    const status = appointment.status;
+    if (typeof status === 'string') {
+      switch (status.toLowerCase()) {
+        case 'waiting': return 'status-waiting';
+        case 'in progress': return 'status-progress';
+        case 'completed': return 'status-completed';
+        case 'cancelled': return 'status-cancelled';
+        case 'no show': return 'status-noshow';
+        default: return 'status-scheduled';
+      }
+    }
+    switch (status) {
+      case 1: return 'status-waiting';
+      case 2: return 'status-progress';
+      case 3: return 'status-completed';
+      case 4: return 'status-cancelled';
+      case 5: return 'status-noshow';
+      default: return 'status-scheduled';
     }
   }
 
@@ -986,16 +1414,19 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   onProceed() {
     if (this.isFormValid()) {
-      const formattedDate = this.selectedDate!.toISOString().split('T')[0];
+      const year = this.selectedDate!.getFullYear();
+      const month = (this.selectedDate!.getMonth() + 1).toString().padStart(2, '0');
+      const day = this.selectedDate!.getDate().toString().padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
 
       // Extract just the start time (before the dash) for easier matching
       const startTimeOnly = this.selectedTimeSlot!.split(' - ')[0];
-      
+
       // Store appointment details in session storage for use in patient details form
       const appointmentData = {
         doctorId: this.selectedDoctor!.id,
         doctorName: this.selectedDoctor!.name,
-        patientId: this.currentUser?.userId || this.currentUser?.id || this.currentUser?.userID,
+        patientId: this.currentUser?.id || this.currentUser?.userID,
         appointmentDate: formattedDate,
         startTime: startTimeOnly,  // Store only start time
         fullTimeSlot: this.selectedTimeSlot!,  // Store full slot for display
@@ -1003,9 +1434,6 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
         status: 'Scheduled',
         notes: 'Booked via portal'
       };
-      
-      console.log('Storing appointment data:', appointmentData);
-      console.log('Current user object:', this.currentUser);
 
       sessionStorage.setItem('pendingAppointment', JSON.stringify(appointmentData));
 
@@ -1028,6 +1456,51 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   isFormValid(): boolean {
     return !!(this.selectedDoctor && this.selectedDate && this.selectedTimeSlot);
+  }
+
+  formatTime(timeSpan: string): string {
+    try {
+      if (timeSpan.includes(':')) {
+        const parts = timeSpan.split(':');
+        const hours = parseInt(parts[0]);
+        const minutes = parts[1];
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+        return `${displayHours}:${minutes} ${period}`;
+      }
+      return timeSpan;
+    } catch {
+      return timeSpan;
+    }
+  }
+
+  cancelAppointment(appointmentId: string): void {
+    const snackBarRef = this.snackBar.openFromComponent(CancellationSnackBarComponent, {
+      duration: 10000, // 10 seconds to decide
+      panelClass: ['cancellation-snackbar'],
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom'
+    });
+
+    snackBarRef.onAction().subscribe(() => {
+      // User confirmed (clicked "Yes, Cancel")
+      this.appointmentService.cancelAppointment(appointmentId).subscribe({
+        next: (response) => {
+          this.snackBar.open('Appointment cancelled successfully. Refund initiated.', 'Close', {
+            duration: 5000,
+            panelClass: ['success-snackbar']
+          });
+          this.loadAppointments(); // Refresh the list
+        },
+        error: (error) => {
+          console.error('Error cancelling appointment:', error);
+          this.snackBar.open('Failed to cancel appointment. Please try again.', 'Close', {
+            duration: 5000,
+            panelClass: ['error-snackbar']
+          });
+        }
+      });
+    });
   }
 
   logout(): void {

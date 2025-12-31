@@ -25,33 +25,40 @@ namespace CMS.Infrastructure.EMR.Repositories
 
         public async Task<List<PatientQueue>> GetQueueByDoctorAsync(Guid doctorId, DateTime date)
         {
-            var startOfDay = date.Date;
-            var endOfDay = startOfDay.AddDays(30); // Extended to 30 days to catch follow-ups
+            var today = DateTime.Now.Date;
+            var futureDate = today.AddDays(30);
 
             var result = await _context.PatientQueues
                 .Include(q => q.Appointment)
                 .Include(q => q.Patient)
                 .Include(q => q.Doctor)
                 .Where(q => q.DoctorID == doctorId 
-                    && q.AppointmentDate.Date >= startOfDay 
-                    && q.AppointmentDate.Date < endOfDay
-                    && !q.IsDeleted)
+                    && q.AppointmentDate.Date >= today
+                    && q.AppointmentDate.Date <= futureDate
+                    && !q.IsDeleted
+                    && q.QueueStatus != CMS.Domain.Clinic.Enums.QueueStatusType.Completed)
                 .OrderBy(q => q.AppointmentDate)
                 .ThenBy(q => q.QueueZone)
                 .ThenBy(q => q.AppointmentTimeSlot)
                 .ThenBy(q => q.QueuePosition)
                 .ToListAsync();
 
-            // Debug logging
-            Console.WriteLine($"[DEBUG] GetQueueByDoctorAsync - DoctorId: {doctorId}, Date: {date:yyyy-MM-dd}");
-            Console.WriteLine($"[DEBUG] Date range: {startOfDay:yyyy-MM-dd HH:mm:ss} to {endOfDay:yyyy-MM-dd HH:mm:ss} (30 days)");
-            Console.WriteLine($"[DEBUG] Found {result.Count} queue entries");
+            Console.WriteLine($"[DEBUG] GetQueueByDoctorAsync - DoctorId: {doctorId}");
+            Console.WriteLine($"[DEBUG] Looking for appointments from: {today:yyyy-MM-dd} to {futureDate:yyyy-MM-dd}");
+            Console.WriteLine($"[DEBUG] Found {result.Count} queue entries (excluding completed)");
             
-            foreach (var q in result)
-            {
-                Console.WriteLine($"[DEBUG] Queue: {q.QueueID}, Patient: {q.PatientID}, AppointmentDate: {q.AppointmentDate:yyyy-MM-dd HH:mm:ss}, Zone: {q.QueueZone}");
-            }
-
+            // Check if there are any appointments at all for this doctor
+            var totalAppointments = await _context.Appointments
+                .Where(a => a.DoctorID == doctorId)
+                .CountAsync();
+            Console.WriteLine($"[DEBUG] Total appointments for doctor: {totalAppointments}");
+            
+            // Check if there are any queue entries at all for this doctor
+            var totalQueues = await _context.PatientQueues
+                .Where(q => q.DoctorID == doctorId && !q.IsDeleted)
+                .CountAsync();
+            Console.WriteLine($"[DEBUG] Total queue entries for doctor: {totalQueues}");
+            
             return result;
         }
 

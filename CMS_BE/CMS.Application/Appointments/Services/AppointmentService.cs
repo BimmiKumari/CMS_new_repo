@@ -1,114 +1,199 @@
 using CMS.Application.Appointments.DTOs.Requests;
 using CMS.Application.Appointments.DTOs.Responses;
 using CMS.Application.Appointments.Interfaces;
+using CMS.Application.Notifications.Services;
 using CMS.Data;
 using CMS.Domain.Appointments.Entities;
 using CMS.Domain.Appointments.Enums;
-using CMS.Domain.Clinic.Entities;
-using CMS.Domain.Clinic.Enums;
+using CMS.Domain.NotificationModels.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CMS.Application.Appointments.Services
 {
     public class AppointmentService : IAppointmentService
     {
         private readonly CmsDbContext _context;
+        private readonly ITemplateNotificationService _notificationService;
+        private readonly ILogger<AppointmentService> _logger;
 
-        public AppointmentService(CmsDbContext context)
+        public AppointmentService(CmsDbContext context, ITemplateNotificationService notificationService, ILogger<AppointmentService> logger)
         {
             _context = context;
+            _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task<AppointmentDto> CreateAppointmentAsync(CreateAppointmentRequestDto request)
         {
-            var appointment = new Appointment
+            try
             {
-                AppointmentID = Guid.NewGuid(),
-                PatientID = request.PatientID,
-                user_id = request.user_id, // Store user_id for easier querying
-                DoctorID = request.DoctorID,
-                AppointmentDate = request.AppointmentDate,
-                StartTime = request.StartTime,
-                EndTime = request.EndTime,
-                AppointmentType = request.AppointmentType,
-                ReasonForVisit = request.ReasonForVisit,
-                Status = AppointmentStatus.Pending,
-                CreatedBy = null,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Appointments.Add(appointment);
-            await _context.SaveChangesAsync();
-
-            // Auto-add follow-up appointments to queue
-            if (request.AppointmentType == AppointmentType.FollowUp)
-            {
-                try
+                Console.WriteLine($"[APPOINTMENT] Creating appointment: PatientID={request.PatientID}, DoctorID={request.DoctorID}, Type={request.AppointmentType}");
+                Console.WriteLine($"[APPOINTMENT] Date={request.AppointmentDate:yyyy-MM-dd}, StartTime={request.StartTime}, EndTime={request.EndTime}");
+                
+                // Convert time strings to TimeSpan
+                TimeSpan startTimeSpan, endTimeSpan;
+                if (!TimeSpan.TryParse(request.StartTime, out startTimeSpan))
                 {
-                    Console.WriteLine($"[FOLLOWUP] Creating queue entry for appointment {appointment.AppointmentID}");
-                    
-                    var patient = await _context.Patients.FirstOrDefaultAsync(p => p.patient_id == request.PatientID);
-                    if (patient != null)
+                    throw new ArgumentException($"Invalid start time format: {request.StartTime}");
+                }
+                if (!TimeSpan.TryParse(request.EndTime, out endTimeSpan))
+                {
+                    throw new ArgumentException($"Invalid end time format: {request.EndTime}");
+                }
+                
+                // Find the actual patient record by user_id
+                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.user_id == request.PatientID);
+                if (patient == null)
+                {
+                    // Create a new patient record if it doesn't exist
+                    var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == request.PatientID);
+                    if (user == null)
                     {
-                        var queuePosition = await GetNextQueuePositionAsync(request.DoctorID, request.AppointmentDate, true);
-                        
-                        var queue = new PatientQueue
-                        {
-                            QueueID = Guid.NewGuid(),
-                            AppointmentID = appointment.AppointmentID,
-                            PatientID = request.PatientID,
-                            user_id = request.user_id, // Store user_id
-                            DoctorID = request.DoctorID,
-                            QueueZone = AppointmentType.FollowUp,
-                            QueuePosition = queuePosition,
-                            QueueStatus = QueueStatusType.Waiting,
-                            AppointmentTimeSlot = request.StartTime,
-                            AppointmentDate = request.AppointmentDate,
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        };
-                        
-                        Console.WriteLine($"[FOLLOWUP] Queue entry: QueueID={queue.QueueID}, PatientID={queue.PatientID}, Date={queue.AppointmentDate:yyyy-MM-dd}");
-                        
-                        _context.PatientQueues.Add(queue);
-                        await _context.SaveChangesAsync();
-                        
-                        Console.WriteLine($"[FOLLOWUP] Queue entry created successfully");
+                        throw new InvalidOperationException($"No user found for ID: {request.PatientID}");
+                    }
+                    
+                    patient = new Patient
+                    {
+                        patient_id = Guid.NewGuid(),
+                        user_id = request.PatientID,
+                        date_of_birth = DateOnly.FromDateTime(DateTime.Now.AddYears(-30)), // Default age
+                        sex = 'U', // Unknown
+                        country = "Unknown",
+                        pincode = "000000",
+                        city = "Unknown",
+                        state = "Unknown",
+                        blood_group = "Unknown",
+                        consulted_before = false,
+                        seeking_followup = false
+                    };
+                    
+                    _context.Patients.Add(patient);
+                    await _context.SaveChangesAsync();
+                    Console.WriteLine($"[PATIENT] Created new patient record: {patient.patient_id} for user: {request.PatientID}");
+                }
+                
+                var appointment = new Appointment
+                {
+                    AppointmentID = Guid.NewGuid(),
+                    PatientID = patient.patient_id, // Use actual patient_id
+                    user_id = request.PatientID, // Store user_id for easier querying
+                    DoctorID = request.DoctorID,
+                    AppointmentDate = request.AppointmentDate,
+                    StartTime = startTimeSpan,
+                    EndTime = endTimeSpan,
+                    AppointmentType = request.AppointmentType,
+                    ReasonForVisit = request.ReasonForVisit,
+                    Status = AppointmentStatus.Scheduled, // Set to Scheduled instead of Pending
+                    CreatedBy = null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Appointments.Add(appointment);
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"[APPOINTMENT] Appointment created successfully: {appointment.AppointmentID}");
+
+                // Send automatic notifications
+                await SendAppointmentConfirmationNotifications(appointment, patient);
+
+                return await MapToDto(appointment);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[APPOINTMENT ERROR] Failed to create appointment: {ex.Message}");
+                Console.WriteLine($"[APPOINTMENT ERROR] Stack trace: {ex.StackTrace}");
+                throw;
+            }
+        }
+
+        private async Task SendAppointmentConfirmationNotifications(Appointment appointment, Patient patient)
+        {
+            try
+            {
+                // Get user details
+                var user = await _context.Users.FindAsync(patient.user_id);
+                if (user == null)
+                {
+                    _logger.LogWarning("User not found for patient {PatientId}", patient.patient_id);
+                    return;
+                }
+
+                // Get doctor details
+                var doctor = await _context.Doctors
+                    .Include(d => d.User)
+                    .FirstOrDefaultAsync(d => d.DoctorID == appointment.DoctorID);
+
+                // Prepare notification variables
+                var variables = new Dictionary<string, object>
+                {
+                    { "PatientName", user.Name ?? "Patient" },
+                    { "DoctorName", doctor?.User?.Name ?? "Doctor" },
+                    { "AppointmentDate", appointment.AppointmentDate.ToString("MMMM dd, yyyy") },
+                    { "AppointmentTime", appointment.StartTime.ToString(@"hh\:mm") },
+                    { "ReasonForVisit", appointment.ReasonForVisit ?? "General consultation" },
+                    { "AppointmentType", appointment.AppointmentType.ToString() }
+                };
+
+                // Find and send email template
+                if (!string.IsNullOrWhiteSpace(user.Email))
+                {
+                    var emailTemplate = await _context.NotificationTemplates
+                        .FirstOrDefaultAsync(t => t.Name == "Appointment Booking Confirmation" && 
+                                                 t.ChannelType == NotificationChannelType.Email && 
+                                                 t.IsActive);
+                    
+                    if (emailTemplate != null)
+                    {
+                        var emailSent = await _notificationService.SendNotificationAsync(
+                            emailTemplate.Id,
+                            user.Email,
+                            user.Name ?? "Patient",
+                            variables
+                        );
+
+                        _logger.LogInformation(emailSent ? 
+                            "Appointment confirmation email sent to {Email}" : 
+                            "Failed to send appointment confirmation email to {Email}", user.Email);
                     }
                     else
                     {
-                        Console.WriteLine($"[FOLLOWUP ERROR] Patient not found for ID: {request.PatientID}");
+                        _logger.LogWarning("No email template found for appointment booking confirmation");
                     }
                 }
-                catch (Exception ex)
+
+                // Find and send SMS template
+                if (!string.IsNullOrWhiteSpace(user.PhoneNumber))
                 {
-                    Console.WriteLine($"[FOLLOWUP ERROR] Failed to create queue entry: {ex.Message}");
-                    Console.WriteLine($"[FOLLOWUP ERROR] Stack trace: {ex.StackTrace}");
+                    var smsTemplate = await _context.NotificationTemplates
+                        .FirstOrDefaultAsync(t => t.Name == "Appointment SMS Booking Confirmation" && 
+                                                 t.ChannelType == NotificationChannelType.SMS && 
+                                                 t.IsActive);
+                    
+                    if (smsTemplate != null)
+                    {
+                        var smsSent = await _notificationService.SendNotificationAsync(
+                            smsTemplate.Id,
+                            user.PhoneNumber,
+                            user.Name ?? "Patient",
+                            variables
+                        );
+
+                        _logger.LogInformation(smsSent ? 
+                            "Appointment confirmation SMS sent to {Phone}" : 
+                            "Failed to send appointment confirmation SMS to {Phone}", user.PhoneNumber);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No SMS template found for appointment booking confirmation");
+                    }
                 }
             }
-
-            return await MapToDto(appointment);
-        }
-        
-        private async Task<int> GetNextQueuePositionAsync(Guid doctorId, DateTime date, bool isFollowUp)
-        {
-            var startOfDay = date.Date;
-            var endOfDay = startOfDay.AddDays(1);
-
-            var queueZone = isFollowUp 
-                ? AppointmentType.FollowUp 
-                : AppointmentType.Consultation;
-
-            var maxPosition = await _context.PatientQueues
-                .Where(q => q.DoctorID == doctorId 
-                    && q.AppointmentDate >= startOfDay 
-                    && q.AppointmentDate < endOfDay
-                    && q.QueueZone == queueZone
-                    && !q.IsDeleted)
-                .MaxAsync(q => (int?)q.QueuePosition) ?? 0;
-
-            return maxPosition + 1;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending appointment confirmation notifications for appointment {AppointmentId}", appointment.AppointmentID);
+                // Don't throw - notification failure shouldn't break appointment creation
+            }
         }
         
 
@@ -148,9 +233,87 @@ namespace CMS.Application.Appointments.Services
             return dtos;
         }
 
+        public async Task<IEnumerable<AppointmentDto>> GetPatientAppointmentsAsync(Guid patientId)
+        {
+            Console.WriteLine($"[SERVICE DEBUG] GetPatientAppointmentsAsync called with patientId: {patientId}");
+            
+            // Try to find appointments by PatientID first, then by user_id as fallback
+            var appointments = await _context.Appointments
+                .Where(a => (a.PatientID == patientId || a.user_id == patientId) && !a.IsDeleted)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+            
+            Console.WriteLine($"[SERVICE DEBUG] Found {appointments.Count} appointments");
+            foreach (var apt in appointments)
+            {
+                Console.WriteLine($"[SERVICE DEBUG] Appointment: ID={apt.AppointmentID}, PatientID={apt.PatientID}, user_id={apt.user_id}, Date={apt.AppointmentDate:yyyy-MM-dd}, Status={apt.Status}");
+            }
+            
+            var dtos = new List<AppointmentDto>();
+            foreach (var app in appointments)
+            {
+                dtos.Add(await MapToDto(app));
+            }
+            
+            Console.WriteLine($"[SERVICE DEBUG] Returning {dtos.Count} appointment DTOs");
+            return dtos;
+        }
+
+        public async Task<IEnumerable<AppointmentDto>> GetAllAppointmentsAsync()
+        {
+            var appointments = await _context.Appointments
+                .Where(a => !a.IsDeleted)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+            
+            var dtos = new List<AppointmentDto>();
+            foreach (var app in appointments)
+            {
+                dtos.Add(await MapToDto(app));
+            }
+            return dtos;
+        }
+
+        public async Task<AppointmentDto?> UpdateAppointmentStatusAsync(Guid appointmentId, int status)
+        {
+            Console.WriteLine($"[SERVICE DEBUG] UpdateAppointmentStatusAsync called with appointmentId: {appointmentId}, status: {status}");
+            
+            var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.AppointmentID == appointmentId);
+            if (appointment == null) 
+            {
+                Console.WriteLine($"[SERVICE DEBUG] Appointment not found: {appointmentId}");
+                return null;
+            }
+
+            Console.WriteLine($"[SERVICE DEBUG] Found appointment: {appointment.AppointmentID}, current status: {appointment.Status}");
+            
+            appointment.Status = (AppointmentStatus)status;
+            appointment.UpdatedAt = DateTime.UtcNow;
+            
+            Console.WriteLine($"[SERVICE DEBUG] Updated appointment status to: {appointment.Status}");
+            
+            await _context.SaveChangesAsync();
+            
+            Console.WriteLine($"[SERVICE DEBUG] Changes saved successfully");
+            
+            return await MapToDto(appointment);
+        }
+
         private async Task<AppointmentDto> MapToDto(Appointment appointment)
         {
-            var patient = await _context.Users.FindAsync(appointment.PatientID);
+            // First try to get user by user_id, then by PatientID
+            var userId = appointment.user_id ?? appointment.PatientID;
+            var patient = await _context.Users.FindAsync(userId);
+            
+            // If not found by user_id, try to find patient record and get user from there
+            if (patient == null)
+            {
+                var patientRecord = await _context.Patients
+                    .Include(p => p.User)
+                    .FirstOrDefaultAsync(p => p.patient_id == appointment.PatientID);
+                patient = patientRecord?.User;
+            }
+            
             var doctor = await _context.Doctors
                 .Include(d => d.User)
                 .FirstOrDefaultAsync(d => d.DoctorID == appointment.DoctorID);
@@ -160,16 +323,65 @@ namespace CMS.Application.Appointments.Services
                 AppointmentID = appointment.AppointmentID,
                 PatientID = appointment.PatientID,
                 PatientName = patient?.Name ?? "Unknown",
+                PatientEmail = patient?.Email ?? "Not provided",
+                PatientPhone = patient?.PhoneNumber ?? "Not provided",
                 DoctorID = appointment.DoctorID,
                 DoctorName = doctor?.User?.Name ?? "Unknown",
                 AppointmentDate = appointment.AppointmentDate,
-                StartTime = appointment.StartTime,
-                EndTime = appointment.EndTime,
+                StartTime = appointment.StartTime.ToString(@"hh\:mm"),
+                EndTime = appointment.EndTime.ToString(@"hh\:mm"),
                 Status = appointment.Status,
                 AppointmentType = appointment.AppointmentType,
                 ReasonForVisit = appointment.ReasonForVisit,
                 CreatedAt = appointment.CreatedAt
             };
+        }
+        public async Task<bool> DeleteAppointmentAsync(Guid appointmentId)
+        {
+            Console.WriteLine($"[APPOINTMENT] Request to delete appointment: {appointmentId}");
+            
+            var appointment = await _context.Appointments.FindAsync(appointmentId);
+            if (appointment == null)
+            {
+                Console.WriteLine($"[APPOINTMENT] Appointment not found: {appointmentId}");
+                return false;
+            }
+
+            try
+            {
+                // clean up related records first to maintain referential integrity if any foreign keys exist
+                // or just to keep data clean
+                
+                // 1. Remove from Queue
+                var queueEntries = await _context.PatientQueues.Where(q => q.AppointmentID == appointmentId).ToListAsync();
+                if (queueEntries.Any())
+                {
+                    _context.PatientQueues.RemoveRange(queueEntries);
+                    Console.WriteLine($"[APPOINTMENT] Removed {queueEntries.Count} queue entries");
+                }
+                
+                // 2. Remove Encounter (if it was created for this appointment)
+                // Note: Usually encounters are valuable medical records, but if the appointment is "cancelled" 
+                // before it happened, the encounter shell should validly be removed.
+                var encounters = await _context.PatientEncounters.Where(e => e.AppointmentID == appointmentId).ToListAsync();
+                if (encounters.Any())
+                {
+                    _context.PatientEncounters.RemoveRange(encounters);
+                    Console.WriteLine($"[APPOINTMENT] Removed {encounters.Count} encounter records");
+                }
+
+                // 3. Remove Appointment
+                _context.Appointments.Remove(appointment);
+                
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"[APPOINTMENT] Appointment deleted successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[APPOINTMENT ERROR] Failed to delete appointment: {ex.Message}");
+                throw;
+            }
         }
     }
 }

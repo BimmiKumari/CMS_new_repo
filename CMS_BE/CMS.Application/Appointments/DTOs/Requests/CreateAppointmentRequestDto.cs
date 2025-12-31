@@ -17,10 +17,10 @@ namespace CMS.Application.Appointments.DTOs.Requests
         public DateTime AppointmentDate { get; set; }
         
         [Required]
-        public TimeSpan StartTime { get; set; }
+        public string StartTime { get; set; } = string.Empty; // Accept as string for conversion
         
         [Required]
-        public TimeSpan EndTime { get; set; }
+        public string EndTime { get; set; } = string.Empty; // Accept as string for conversion
         
         [Required]
         public AppointmentType AppointmentType { get; set; }
