@@ -66,6 +66,11 @@ import { AuthService } from '../../../../core/services/auth.service';
 
       <!-- Right Side - Signup Form -->
       <div class="right-panel">
+        <div class="back-arrow">
+          <button (click)="goToHome()" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+          </button>
+        </div>
         <div class="form-container">
           <div class="form-header">
             <h1>Create Account</h1>
@@ -76,6 +81,7 @@ import { AuthService } from '../../../../core/services/auth.service';
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Full Name</mat-label>
               <input matInput formControlName="name" required>
+              <mat-hint>Enter name as per Aadhaar card</mat-hint>
               <mat-error *ngIf="signupForm.get('name')?.hasError('required')">
                 Name is required
               </mat-error>
@@ -93,19 +99,22 @@ import { AuthService } from '../../../../core/services/auth.service';
               <mat-error *ngIf="signupForm.get('email')?.hasError('required')">
                 Email is required
               </mat-error>
-              <mat-error *ngIf="signupForm.get('email')?.hasError('email')">
-                Please enter a valid email
+              <mat-error *ngIf="signupForm.get('email')?.hasError('email') || signupForm.get('email')?.hasError('pattern')">
+                Please enter a valid email address
               </mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Phone Number</mat-label>
-              <input matInput formControlName="phoneNumber" placeholder="+1234567890" required>
+              <input matInput formControlName="phoneNumber" placeholder="1234567890" maxlength="10" required>
               <mat-error *ngIf="signupForm.get('phoneNumber')?.hasError('required')">
                 Phone number is required
               </mat-error>
               <mat-error *ngIf="signupForm.get('phoneNumber')?.hasError('pattern')">
-                Please enter a valid phone number
+                Please enter a valid 10-digit phone number
+              </mat-error>
+              <mat-error *ngIf="signupForm.get('phoneNumber')?.hasError('minlength') || signupForm.get('phoneNumber')?.hasError('maxlength')">
+                Phone number must be exactly 10 digits
               </mat-error>
             </mat-form-field>
 
@@ -197,6 +206,44 @@ import { AuthService } from '../../../../core/services/auth.service';
       align-items: center;
       padding: 2rem;
       background: #ffffff;
+      position: relative;
+    }
+
+    .back-arrow {
+      position: absolute;
+      top: 2rem;
+      left: 2rem;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background: #10b981;
+      border-color: #10b981;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.2);
+    }
+
+    .back-btn:hover i {
+      color: white;
+    }
+
+    .back-btn i {
+      color: #10b981;
+      font-size: 1.2rem;
+      transition: color 0.3s ease;
     }
 
     .form-container {
@@ -307,6 +354,11 @@ import { AuthService } from '../../../../core/services/auth.service';
         padding: 1.5rem;
       }
 
+      .back-arrow {
+        top: 1.5rem;
+        left: 1.5rem;
+      }
+
       .form-header h1 {
         font-size: 1.5rem;
       }
@@ -329,6 +381,20 @@ import { AuthService } from '../../../../core/services/auth.service';
 
       .right-panel {
         padding: 1rem;
+      }
+
+      .back-arrow {
+        top: 1rem;
+        left: 1rem;
+      }
+
+      .back-btn {
+        width: 40px;
+        height: 40px;
+      }
+
+      .back-btn i {
+        font-size: 1rem;
       }
     }
 
@@ -366,8 +432,8 @@ export class SignupComponent {
     this.loading$ = this.authService.loading$;
     this.signupForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-Z\s]+$/)]],
-      email: ['', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)]],
-      phoneNumber: ['', [Validators.required, Validators.pattern(/^[+]?[0-9]{10,15}$/)]],
+      email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+      phoneNumber: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/), Validators.minLength(10), Validators.maxLength(10)]],
       password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/)]]
     });
   }
@@ -405,5 +471,9 @@ export class SignupComponent {
       const control = this.signupForm.get(key);
       control?.markAsTouched();
     });
+  }
+
+  goToHome(): void {
+    this.router.navigate(['/']);
   }
 }

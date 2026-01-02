@@ -30,8 +30,6 @@ namespace CMS.Domain.Auth.Entities
         public DateTime UpdatedAt { get; set; }
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
-
-        // Navigation properties
         public ICollection<User_Sessions> Sessions { get; set; } = new List<User_Sessions>();
     }
 }

@@ -26,6 +26,7 @@ import { ActivatedRoute, Router } from '@angular/router';
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Create Password</mat-label>
             <input matInput [type]="showPassword ? 'text' : 'password'" formControlName="newPassword" placeholder="Enter a secure password">
+            <mat-hint>Must contain uppercase, lowercase, number and be at least 8 characters</mat-hint>
             <button mat-icon-button matSuffix type="button" (click)="showPassword = !showPassword" aria-label="Toggle password visibility">
               <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
@@ -34,6 +35,9 @@ import { ActivatedRoute, Router } from '@angular/router';
             </mat-error>
             <mat-error *ngIf="form.get('newPassword')?.hasError('minlength')">
               Password must be at least 8 characters
+            </mat-error>
+            <mat-error *ngIf="form.get('newPassword')?.hasError('pattern')">
+              Password must contain uppercase, lowercase, and number
             </mat-error>
           </mat-form-field>
 
@@ -264,7 +268,7 @@ export class AcceptInvitationComponent {
   token: string | null = null;
 
   constructor(private fb: FormBuilder, private auth: AuthService, private route: ActivatedRoute, private router: Router) {
-    this.form = this.fb.group({ newPassword: ['', [Validators.required, Validators.minLength(8)]] });
+    this.form = this.fb.group({ newPassword: ['', [Validators.required, Validators.minLength(8), Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/)]] });
     const token = this.route.snapshot.queryParamMap.get('token');
     if (token) {
       this.token = token;

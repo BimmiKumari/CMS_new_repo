@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { DoctorService } from '../../core/services/doctor.service';
+import { Doctor } from './doctor.interface';
 
 @Component({
   selector: 'app-home',
@@ -34,7 +35,7 @@ export class HomeComponent implements OnInit {
     }
   ];
 
-  doctors: any[] = [];
+  doctors: Doctor[] = [];
   loading = false;
 
   constructor(
@@ -77,21 +78,5 @@ export class HomeComponent implements OnInit {
 
   onImageError(event: any, name: string) {
     event.target.src = this.getDicebarAvatar(name);
-  }
-
-  getDoctorName(doctor: any): string {
-    if (doctor.name) {
-      return doctor.name;
-    }
-    if (doctor.firstName && doctor.lastName) {
-      return `${doctor.firstName} ${doctor.lastName}`;
-    }
-    if (doctor.firstName) {
-      return doctor.firstName;
-    }
-    if (doctor.lastName) {
-      return doctor.lastName;
-    }
-    return doctor.email || 'Doctor';
   }
 }
