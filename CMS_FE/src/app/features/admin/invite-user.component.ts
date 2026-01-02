@@ -24,19 +24,23 @@ import { RoleType } from '../../shared/models/auth.models';
             <mat-error *ngIf="form.get('email')?.hasError('required')">
               Email is required
             </mat-error>
-            <mat-error *ngIf="form.get('email')?.hasError('email')">
-              Please enter a valid email
+            <mat-error *ngIf="form.get('email')?.hasError('email') || form.get('email')?.hasError('pattern')">
+              Please enter a valid email address
             </mat-error>
           </mat-form-field>
           
           <mat-form-field appearance="outline" class="form-field">
             <mat-label>Full Name</mat-label>
             <input matInput formControlName="name" required placeholder="John Doe">
+            <mat-hint>Enter name as per Aadhaar card</mat-hint>
             <mat-error *ngIf="form.get('name')?.hasError('required')">
               Name is required
             </mat-error>
             <mat-error *ngIf="form.get('name')?.hasError('minlength')">
               Name must be at least 2 characters
+            </mat-error>
+            <mat-error *ngIf="form.get('name')?.hasError('pattern')">
+              Name can only contain letters and spaces
             </mat-error>
           </mat-form-field>
         </div>
@@ -44,12 +48,15 @@ import { RoleType } from '../../shared/models/auth.models';
         <div class="form-row">
           <mat-form-field appearance="outline" class="form-field">
             <mat-label>Phone Number</mat-label>
-            <input matInput formControlName="phoneNumber" required placeholder="+1234567890">
+            <input matInput formControlName="phoneNumber" required placeholder="1234567890" maxlength="10">
             <mat-error *ngIf="form.get('phoneNumber')?.hasError('required')">
               Phone number is required
             </mat-error>
             <mat-error *ngIf="form.get('phoneNumber')?.hasError('pattern')">
-              Please enter a valid phone number
+              Please enter a valid 10-digit phone number
+            </mat-error>
+            <mat-error *ngIf="form.get('phoneNumber')?.hasError('minlength') || form.get('phoneNumber')?.hasError('maxlength')">
+              Phone number must be exactly 10 digits
             </mat-error>
           </mat-form-field>
           
@@ -233,9 +240,9 @@ export class InviteUserComponent {
 
   constructor(private fb: FormBuilder, private auth: AuthService) {
     this.form = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      name: ['', [Validators.required, Validators.minLength(2)]],
-      phoneNumber: ['', [Validators.required, Validators.pattern(/^[+]?[0-9]{7,20}$/)]],
+      email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+      name: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-Z\s]+$/)]],
+      phoneNumber: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/), Validators.minLength(10), Validators.maxLength(10)]],
       role: [RoleType.Staff, Validators.required]
     });
   }

@@ -37,8 +37,8 @@ import { AuthService } from '../../../../core/services/auth.service';
             <mat-error *ngIf="forgotForm.get('email')?.hasError('required')">
               Email is required
             </mat-error>
-            <mat-error *ngIf="forgotForm.get('email')?.hasError('email')">
-              Please enter a valid email
+            <mat-error *ngIf="forgotForm.get('email')?.hasError('email') || forgotForm.get('email')?.hasError('pattern')">
+              Please enter a valid email address
             </mat-error>
           </mat-form-field>
 
@@ -222,7 +222,7 @@ export class ForgotPasswordComponent {
   ) {
     this.loading$ = this.authService.loading$;
     this.forgotForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]]
+      email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]]
     });
   }
 

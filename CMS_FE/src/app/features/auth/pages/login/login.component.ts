@@ -103,6 +103,11 @@ import { RoleType } from '../../../../shared/models/auth.models';
       <!-- Right Side - Login Form -->
       <div class="right-panel">
         <div class="form-container">
+          <div class="back-arrow">
+            <button (click)="goToHome()" class="back-btn">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+          </div>
           <div class="form-header">
             <h1>Sign In</h1>
             <p>Enter your credentials to continue</p>
@@ -115,8 +120,8 @@ import { RoleType } from '../../../../shared/models/auth.models';
               <mat-error *ngIf="loginForm.get('email')?.hasError('required')">
                 Email is required
               </mat-error>
-              <mat-error *ngIf="loginForm.get('email')?.hasError('email')">
-                Please enter a valid email
+              <mat-error *ngIf="loginForm.get('email')?.hasError('email') || loginForm.get('email')?.hasError('pattern')">
+                Please enter a valid email address
               </mat-error>
             </mat-form-field>
 
@@ -211,6 +216,44 @@ import { RoleType } from '../../../../shared/models/auth.models';
       border-radius: 16px;
       backdrop-filter: blur(10px);
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    .back-arrow {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      z-index: 10;
+    }
+
+    .back-btn {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background: #10b981;
+      border-color: #10b981;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .back-btn:hover i {
+      color: white;
+    }
+
+    .back-btn i {
+      color: #10b981;
+      font-size: 1rem;
+      transition: color 0.3s ease;
     }
 
     .form-header {
@@ -369,7 +412,7 @@ export class LoginComponent {
   ) {
     this.loading$ = this.authService.loading$;
     this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)]],
+      email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
   }
@@ -417,5 +460,9 @@ export class LoginComponent {
       default:
         this.router.navigate(['/patient']);
     }
+  }
+
+  goToHome(): void {
+    this.router.navigate(['/']);
   }
 }

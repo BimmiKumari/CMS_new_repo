@@ -144,6 +144,7 @@ import { CancellationSnackBarComponent } from '../../shared/components/cancellat
                       <mat-select 
                         [(value)]="selectedSpecialization" 
                         (selectionChange)="onSpecializationChange($event.value)"
+                        placeholder="Select from dropdown"
                       >
                         <mat-option [value]="''">All Specialties</mat-option>
                         <mat-option *ngFor="let spec of specializations" [value]="spec">
@@ -1144,7 +1145,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   doctors: Doctor[] = [];
   filteredDoctors: Doctor[] = [];
   specializations: string[] = SPECIALIZATIONS;
-  selectedSpecialization: string = '';
+  selectedSpecialization: string | null = null;
   timeSlots: string[] = [];
 
   // Appointments data
@@ -1237,7 +1238,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  onSpecializationChange(spec: string): void {
+  onSpecializationChange(spec: string | null): void {
     this.selectedSpecialization = spec;
     if (spec) {
       this.filteredDoctors = this.doctors.filter(d => d.specialization === spec);
@@ -1246,7 +1247,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     }
 
     // Clear selected doctor if they don't match the new specialization
-    if (this.selectedDoctor && this.selectedDoctor.specialization !== spec && spec !== '') {
+    if (this.selectedDoctor && this.selectedDoctor.specialization !== spec && spec !== null && spec !== '') {
       this.selectedDoctor = undefined;
       this.selectedTimeSlot = undefined;
       this.timeSlots = [];
@@ -1399,6 +1400,12 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   onDoctorChange(doctor: Doctor) {
     this.selectedDoctor = doctor;
     this.selectedTimeSlot = undefined;
+    
+    // Set today's date as default if no date is selected
+    if (!this.selectedDate) {
+      this.selectedDate = new Date();
+    }
+    
     this.loadAvailableSlots();
   }
 
